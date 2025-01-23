@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:project_app/feature/main/ui/main_page_mobile.dart';
-import 'package:project_app/feature/map/ui/map_mobile.dart';
-import 'package:project_app/feature/news/news_mobile_page.dart';
-import 'package:project_app/feature/predictions/statistics_and_predictions_mobile.dart';
-import 'package:project_app/feature/auth/ui/login_page_mobile.dart';
+
 
 void main() {
   runApp(
@@ -17,95 +13,7 @@ void main() {
 class ProfilePageApp extends StatelessWidget {
   const ProfilePageApp({super.key});
 
-  void _showMenu(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: const Color(0xFF0B1D26),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (BuildContext context) {
-      return SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.article, color: Colors.white),
-              title: const Text(
-                'News',
-                style: TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const NewsPageApp()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart, color: Colors.white),
-              title: const Text(
-                'Statistics',
-                style: TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const FloodPredictionApp()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.map, color: Colors.white),
-              title: const Text(
-                'Map',
-                style: TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MapPageApp()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_circle, color: Colors.white),
-              title: const Text(
-                'Account',
-                style: TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfilePageApp()),
-                );
-              },
-            ),
-             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.redAccent),
-              title: const Text(
-                'Log Out',
-                style: TextStyle(color: Colors.redAccent),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const LoginPageMobile()),
-                );
-              },
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+
 
   @override
   Widget build(BuildContext context) {
@@ -148,28 +56,7 @@ class ProfilePageApp extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            Positioned(
-                              top: 40,
-                              left: 20,
-                              right: 20,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.home,
-                                        color: Colors.white),
-                                    onPressed: () {
-                                      Navigator.pop(context); // Navigate to home
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.menu,
-                                        color: Colors.white),
-                                    onPressed: () => _showMenu(context),
-                                  ),
-                                ],
-                              ),
-                            ),
+                           
                             Positioned(
                               top: MediaQuery.of(context).size.height * 0.15,
                               left: 20,

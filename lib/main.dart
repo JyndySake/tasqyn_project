@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:project_app/feature/auth/ui/login_page.dart';
-import 'package:project_app/feature/auth/ui/login_page_mobile.dart';
+import 'package:project_app/feature/onboard/onboard_logo.dart';
+
 
 void main() {
   runApp(const FloodPredictionApp());
@@ -26,7 +27,7 @@ class FloodPredictionApp extends StatelessWidget {
     if (kIsWeb) {
       return LoginPage();
     } else {
-      return const LoginPageMobile();
+      return const OnboardLogoPage();
     }
   }
 }

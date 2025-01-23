@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project_app/feature/main/ui/main_page_mobile.dart';
 
 void main() {
   runApp(const MaterialApp(
@@ -16,9 +17,74 @@ class LoginPageMobile extends StatefulWidget {
 
 class _LoginPageMobileState extends State<LoginPageMobile> {
   bool isLogin = true;
-  bool isResetPassword = false; // State for Reset Password
+  bool isResetPassword = false;
   bool rememberMe = false;
   bool showPassword = false;
+
+  // Controllers for form fields
+  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  // Validation states
+  String? _emailError;
+  String? _usernameError;
+  String? _passwordError;
+  String? _confirmPasswordError;
+
+  void _validateAndSubmit() {
+    setState(() {
+      _emailError = null;
+      _usernameError = null;
+      _passwordError = null;
+      _confirmPasswordError = null;
+
+      if (!isLogin) {
+        if (_emailController.text.isEmpty) {
+          _emailError = "Required field";
+        }
+        if (_usernameController.text.isEmpty) {
+          _usernameError = "Required field";
+        }
+        if (_passwordController.text.isEmpty) {
+          _passwordError = "Required field";
+        }
+        if (_confirmPasswordController.text.isEmpty) {
+          _confirmPasswordError = "Required field";
+        } else if (_passwordController.text != _confirmPasswordController.text) {
+          _confirmPasswordError = "Passwords do not match";
+        }
+      } else {
+        if (_usernameController.text.isEmpty) {
+          _usernameError = "Required field";
+        }
+        if (_passwordController.text.isEmpty) {
+          _passwordError = "Required field";
+        }
+      }
+    });
+
+    // If no errors, proceed with submission
+    if (_emailError == null &&
+        _usernameError == null &&
+        _passwordError == null &&
+        _confirmPasswordError == null) {
+      if (isLogin) {
+        // Handle login logic
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MainPage()),
+        );
+      } else {
+        // Handle signup logic
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const MainPage()),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,8 +138,8 @@ class _LoginPageMobileState extends State<LoginPageMobile> {
                                 isResetPassword
                                     ? "Reset Password"
                                     : isLogin
-                                        ? "Welcome !"
-                                        : "Join Us !",
+                                        ? "Welcome!"
+                                        : "Join Us!",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 32,
@@ -132,14 +198,19 @@ class _LoginPageMobileState extends State<LoginPageMobile> {
           style: TextStyle(color: Colors.white),
         ),
         const SizedBox(height: 8),
-        _buildTextField("example@mail.ru", false),
+        _buildTextField(
+          controller: _emailController,
+          hint: "Enter your email",
+          errorText: _emailError,
+          isPassword: false,
+        ),
         const SizedBox(height: 24),
         ElevatedButton(
           onPressed: () {
             // Handle reset password logic
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFBD784), // Amber color for button
+            backgroundColor: const Color(0xFFFBD784),
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -158,20 +229,18 @@ class _LoginPageMobileState extends State<LoginPageMobile> {
         GestureDetector(
           onTap: () {
             setState(() {
-              isResetPassword = false; // Go back to Login Form
+              isResetPassword = false;
             });
           },
           child: RichText(
             text: const TextSpan(
               text: "Back to ",
-              style: TextStyle(
-                color: Colors.white,
-              ),
+              style: TextStyle(color: Colors.white),
               children: [
                 TextSpan(
                   text: "Login",
                   style: TextStyle(
-                    color: Color(0xFFFBD784), // Amber for the link
+                    color: Color(0xFFFBD784),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -192,14 +261,24 @@ class _LoginPageMobileState extends State<LoginPageMobile> {
           style: TextStyle(color: Colors.white),
         ),
         const SizedBox(height: 8),
-        _buildTextField("Enter your username", false),
+        _buildTextField(
+          controller: _usernameController,
+          hint: "Enter your username",
+          errorText: _usernameError,
+          isPassword: false,
+        ),
         const SizedBox(height: 16),
         const Text(
           "Password",
           style: TextStyle(color: Colors.white),
         ),
         const SizedBox(height: 8),
-        _buildTextField("Enter your password", true),
+        _buildTextField(
+          controller: _passwordController,
+          hint: "Enter your password",
+          errorText: _passwordError,
+          isPassword: true,
+        ),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -213,7 +292,7 @@ class _LoginPageMobileState extends State<LoginPageMobile> {
                       rememberMe = value!;
                     });
                   },
-                  activeColor: const Color(0xFFFBD784), // Amber color for checkbox
+                  activeColor: const Color(0xFFFBD784),
                 ),
                 const Text(
                   "Remember me",
@@ -224,7 +303,7 @@ class _LoginPageMobileState extends State<LoginPageMobile> {
             GestureDetector(
               onTap: () {
                 setState(() {
-                  isResetPassword = true; // Toggle to Reset Password Form
+                  isResetPassword = true;
                 });
               },
               child: const Text(
@@ -239,11 +318,9 @@ class _LoginPageMobileState extends State<LoginPageMobile> {
         ),
         const SizedBox(height: 24),
         ElevatedButton(
-          onPressed: () {
-            // Handle login
-          },
+          onPressed: _validateAndSubmit,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFBD784), // Amber color for button
+            backgroundColor: const Color(0xFFFBD784),
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -264,10 +341,8 @@ class _LoginPageMobileState extends State<LoginPageMobile> {
     );
   }
 
-Widget _buildRegisterForm() {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 16.0),
-    child: Column(
+  Widget _buildRegisterForm() {
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
@@ -275,28 +350,48 @@ Widget _buildRegisterForm() {
           style: TextStyle(color: Colors.white),
         ),
         const SizedBox(height: 8),
-        _buildTextField("Enter your email", false),
+        _buildTextField(
+          controller: _emailController,
+          hint: "Enter your email",
+          errorText: _emailError,
+          isPassword: false,
+        ),
         const SizedBox(height: 16),
         const Text(
           "Username",
           style: TextStyle(color: Colors.white),
         ),
         const SizedBox(height: 8),
-        _buildTextField("Enter your username", false),
+        _buildTextField(
+          controller: _usernameController,
+          hint: "Enter your username",
+          errorText: _usernameError,
+          isPassword: false,
+        ),
         const SizedBox(height: 16),
         const Text(
           "Password",
           style: TextStyle(color: Colors.white),
         ),
         const SizedBox(height: 8),
-        _buildTextField("Enter your password", true),
+        _buildTextField(
+          controller: _passwordController,
+          hint: "Enter your password",
+          errorText: _passwordError,
+          isPassword: true,
+        ),
         const SizedBox(height: 16),
         const Text(
           "Confirm Password",
           style: TextStyle(color: Colors.white),
         ),
         const SizedBox(height: 8),
-        _buildTextField("Confirm your password", true),
+        _buildTextField(
+          controller: _confirmPasswordController,
+          hint: "Confirm your password",
+          errorText: _confirmPasswordError,
+          isPassword: true,
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -307,7 +402,7 @@ Widget _buildRegisterForm() {
                   rememberMe = value!;
                 });
               },
-              activeColor: const Color(0xFFFBD784), // Amber color for checkbox
+              activeColor: const Color(0xFFFBD784),
             ),
             const Text(
               "Remember me",
@@ -317,9 +412,9 @@ Widget _buildRegisterForm() {
         ),
         const SizedBox(height: 16),
         ElevatedButton(
-          onPressed: () {},
+          onPressed: _validateAndSubmit,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFBD784), // Amber color for the button
+            backgroundColor: const Color(0xFFFBD784),
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -327,18 +422,75 @@ Widget _buildRegisterForm() {
           ),
           child: const Text(
             "Sign Up",
-            style: TextStyle(fontSize: 16, color: Colors.black),
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
         const SizedBox(height: 8),
         _buildLoginLink(),
       ],
-    ),
-  );
-}
+    );
+  }
 
-
-Widget _buildLoginLink() {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required bool isPassword,
+    String? errorText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          obscureText: isPassword ? !showPassword : false,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.white54),
+            filled: true,
+            fillColor: Colors.white.withOpacity(0.1),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 16,
+              horizontal: 16,
+            ),
+            suffixIcon: isPassword
+                ? IconButton(
+                    icon: Icon(
+                      showPassword ? Icons.visibility : Icons.visibility_off,
+                      color: Colors.white54,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        showPassword = !showPassword;
+                      });
+                    },
+                  )
+                : null,
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+  Widget _buildLoginLink() {
   return Center(
     child: GestureDetector(
       onTap: () {
@@ -369,41 +521,4 @@ Widget _buildLoginLink() {
     ),
   );
 }
-  Widget _buildTextField(String hint, bool isPassword) {
-    return TextField(
-      obscureText: isPassword ? !showPassword : false,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white54),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          vertical: 16,
-          horizontal: 16,
-        ),
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  showPassword ? Icons.visibility : Icons.visibility_off,
-                  color: Colors.white54,
-                ),
-                onPressed: () {
-                  setState(() {
-                    showPassword = !showPassword;
-                  });
-                },
-              )
-            : null,
-      ),
-    );
-  }
 }
-
-
-
-

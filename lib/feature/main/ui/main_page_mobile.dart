@@ -6,6 +6,14 @@ import 'package:project_app/feature/predictions/statistics_and_predictions_mobil
 import 'package:project_app/feature/profile/ui/profile_mobile.dart';
 import 'package:project_app/feature/auth/ui/login_page_mobile.dart';
 import 'package:project_app/feature/notification/notification_mobile.dart';
+import 'package:project_app/feature/main/mobile_sections/weather_section_mobile.dart';
+import 'package:project_app/feature/privacy/privacy_policy.dart';
+import 'package:project_app/feature/safety_tips/safety_tips.dart';
+import 'package:project_app/feature/emergency_contacts/emergency_contacts.dart';
+import 'package:project_app/feature/main/sections/map_screen.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 
 void main() {
   runApp(const FloodPredictionAppMobile());
@@ -79,28 +87,39 @@ class _MainPageState extends State<MainPage> {
 
       ),
      drawer: Drawer(
-          backgroundColor: Colors.white,
+  backgroundColor: Colors.white,
   child: SafeArea(
     child: Container(
-      color: Colors.white, // Set the entire drawer bckground to white
+      color: Colors.white, // Set the entire drawer background to white
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
+          // Header with a user image
           const DrawerHeader(
             decoration: BoxDecoration(
               color: Colors.white, // Set header background to white
             ),
-            child: Text(
-              'Username',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black, // Text colorto black
-              ),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundImage: AssetImage('assets/images/user_profile.jpg'), // Replace with the actual image path
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Username',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black, // Text color black
+                  ),
+                ),
+              ],
             ),
           ),
+          // Menu items
           ListTile(
-            leading: const Icon(Icons.account_circle, color: Colors.black),
+            leading: const Icon(Icons.person_outline, color: Colors.black),
             title: const Text(
               'My Profile',
               style: TextStyle(color: Colors.black),
@@ -116,28 +135,68 @@ class _MainPageState extends State<MainPage> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.email, color: Colors.black),
+            leading: const Icon(Icons.shield_outlined, color: Colors.black),
+            title: const Text(
+              'Safety Tips',
+              style: TextStyle(color: Colors.black),
+            ),
+            onTap: () {
+                Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SafetyTipsPage(),
+        ),
+      );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.phone_outlined, color: Colors.black),
+            title: const Text(
+              'Emergency Contacts',
+              style: TextStyle(color: Colors.black),
+            ),
+            onTap: () {
+              Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const EmergencyContactsPage(),
+        ),
+      );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.email_outlined, color: Colors.black),
             title: const Text(
               'Contact Us',
               style: TextStyle(color: Colors.black),
             ),
-            onTap: () {},
+            onTap: () {
+              // Add functionality
+            },
           ),
           ListTile(
-            leading: const Icon(Icons.privacy_tip, color: Colors.black),
+            leading: const Icon(Icons.privacy_tip_outlined, color: Colors.black),
             title: const Text(
               'Privacy Policy',
               style: TextStyle(color: Colors.black),
             ),
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+  context,
+  MaterialPageRoute(builder: (context) => const PrivacyPolicyPage()),
+);
+
+            },
           ),
           ListTile(
-            leading: const Icon(Icons.help, color: Colors.black),
+            leading: const Icon(Icons.help_outline, color: Colors.black),
             title: const Text(
               'Helps & FAQs',
               style: TextStyle(color: Colors.black),
             ),
-            onTap: () {},
+            onTap: () {
+              // Add functionality
+            },
           ),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.black),
@@ -160,6 +219,7 @@ class _MainPageState extends State<MainPage> {
     ),
   ),
 ),
+
 
       extendBodyBehindAppBar: true,
       body: _pages[_selectedIndex],
@@ -243,6 +303,7 @@ class MainContentPage extends StatelessWidget {
                     ),
                   ],
                 ),
+                 WeatherSection(),
                 const SectionContainer(
                   title: "Alerts and Current Events",
                   subtitle: "News & Forecasts",
@@ -266,7 +327,6 @@ class MainContentPage extends StatelessWidget {
     );
   }
 }
-
 
 class HeaderSection extends StatelessWidget {
   const HeaderSection({super.key});

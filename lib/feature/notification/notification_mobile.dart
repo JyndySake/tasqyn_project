@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:project_app/feature/map/ui/map_mobile.dart';
-import 'package:project_app/feature/news/news_mobile_page.dart';
-import 'package:project_app/feature/predictions/statistics_and_predictions_mobile.dart';
+
 import 'package:project_app/feature/profile/ui/profile_mobile.dart';
 import 'package:project_app/feature/auth/ui/login_page_mobile.dart';
 

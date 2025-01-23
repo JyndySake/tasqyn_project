@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:project_app/feature/predictions/statistics_and_predictions_mobile.dart';
-import 'package:project_app/feature/main/ui/main_page_mobile.dart';
 import 'package:project_app/feature/profile/ui/profile_mobile.dart';
 import 'package:project_app/feature/map/ui/map_mobile.dart';
 import 'package:project_app/feature/auth/ui/login_page_mobile.dart';
@@ -19,27 +18,7 @@ class NewsPageApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.home, color: Colors.white),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const MainPage()),
-            );
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            onPressed: () {
-              _showMenu(context);
-            },
-          ),
-        ],
-      ),
+    
       extendBodyBehindAppBar: true,
       body: Column(
         children: [
