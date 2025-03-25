@@ -7,22 +7,14 @@ class PrivacyPolicyPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        backgroundColor: const Color(0xFF0B1D26),
+        title: const Text('Privacy Policy'),
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Scaffold.of(context).openDrawer(); // Open the drawer
+            Navigator.of(context).pop();
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              // Add functionality for notifications
-            },
-          ),
-        ],
       ),
       backgroundColor: const Color(0xFF0B1D26), // Dark background
       body: SingleChildScrollView(

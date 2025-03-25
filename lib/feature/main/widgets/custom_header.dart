@@ -4,40 +4,62 @@ import 'package:project_app/feature/predictions/statistics_and_predictions_page.
 import 'package:project_app/feature/map/ui/map_page.dart';
 import 'package:project_app/feature/profile/ui/profile_page.dart';
 import 'package:project_app/feature/auth/ui/login_page.dart';
+import 'package:project_app/feature/main/ui/main_page.dart';
 
 class CustomHeader extends StatelessWidget {
   const CustomHeader({Key? key}) : super(key: key);
 
-  void _navigateToPage(BuildContext context, Widget page) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => page),
-    );
+  void _navigateToPage(BuildContext context, Widget page, String currentPage) {
+    if (ModalRoute.of(context)?.settings.name != currentPage) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => page, settings: RouteSettings(name: currentPage)),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    String? currentRoute = ModalRoute.of(context)?.settings.name;
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      color: Colors.transparent,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: const Text(
+              'TASQYN',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
           Row(
             children: [
               _HeaderButton(
-                label: 'News',
-                onPressed: () => _navigateToPage(context, NewsPage()),
+                label: 'Home',
+                onPressed: currentRoute != 'Home' ? () => _navigateToPage(context, MainPage(), 'Home') : null,
+                isActive: currentRoute == 'Home',
               ),
-              const SizedBox(width: 16),
+              _HeaderButton(
+                label: 'News',
+                onPressed: currentRoute != 'News' ? () => _navigateToPage(context, NewsPage(), 'News') : null,
+                isActive: currentRoute == 'News',
+              ),
               _HeaderButton(
                 label: 'Statistics',
-                onPressed: () => _navigateToPage(context, const PredictionsPage()),
+                onPressed: currentRoute != 'Statistics' ? () => _navigateToPage(context, const PredictionsPage(), 'Statistics') : null,
+                isActive: currentRoute == 'Statistics',
               ),
-              const SizedBox(width: 16),
               _HeaderButton(
                 label: 'Map',
-                onPressed: () => _navigateToPage(context, const ForecastMapPage()),
+                onPressed: currentRoute != 'Map' ? () => _navigateToPage(context, const ForecastMapPage(), 'Map') : null,
+                isActive: currentRoute == 'Map',
               ),
             ],
           ),
@@ -88,47 +110,32 @@ class CustomHeader extends StatelessWidget {
   }
 }
 
-
 class _HeaderButton extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final bool isActive;
 
   const _HeaderButton({
     Key? key,
     required this.label,
     required this.onPressed,
+    required this.isActive,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: GestureDetector(
+        onTap: onPressed,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.grey : Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
         ),
-      ),
-    );
-  }
-}
-
-
-class _HeaderMenuItem extends StatelessWidget {
-  final String title;
-
-  const _HeaderMenuItem({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
       ),
     );
   }

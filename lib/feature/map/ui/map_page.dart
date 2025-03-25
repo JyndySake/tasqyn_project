@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:project_app/feature/predictions/statistics_and_predictions_page.dart';
-import 'package:project_app/feature/profile/ui/profile_page.dart';
-import 'package:project_app/feature/auth/ui/login_page.dart';
-import 'package:project_app/feature/main/ui/main_page.dart';
-import 'package:project_app/feature/news/news_page.dart';
-
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:project_app/feature/main/widgets/custom_header.dart';
+import 'package:intl/intl.dart';
 
 class ForecastMapPage extends StatelessWidget {
   const ForecastMapPage({super.key});
@@ -14,82 +11,19 @@ class ForecastMapPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0B1D26),
-      body: Column(
-        children: [
-          // Header Section
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            color: const Color(0xFF0B1D26),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    _NavigationButton(
-                      title: "Home",
-                      onPressed: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (context) => const FloodPredictionApp()),
-                          (route) => false,
-                        );
-                      },
-                    ),
-                    _NavigationButton(
-                      title: "News",
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const NewsPage()),
-                        );
-                      },
-                    ),
-                    _NavigationButton(
-                      title: "Statistics",
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const PredictionsPage()),
-                        );
-                      },
-                    ),
-                    _NavigationButton(
-                      title: "Map",
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const ForecastMapPage()),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                GestureDetector(
-                  onTap: () => _showAccountMenu(context),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.account_circle_outlined, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text(
-                        "Account",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CustomHeader(),
+            const SizedBox(height: 16),
 
-          // Main Content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
+            // **Title Section**
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title Section
                   const Text(
                     "INTERACTIVE MAP OF RISK ZONES",
                     style: TextStyle(
@@ -124,147 +58,143 @@ class ForecastMapPage extends StatelessWidget {
                       DatePickerWidget(),
                     ],
                   ),
-                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
 
-                  // Map Content
+            const SizedBox(height: 32),
+
+            // **Regions and SVG Map Side by Side**
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // **Regions List**
                   Expanded(
-                    child: Row(
+                    flex: 2, // Ensures proper spacing
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Side: Regions
-                        Expanded(
-                          flex: 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
-                              RegionItem(regionName: "North-Kazakhstan region"),
-                              SizedBox(height: 30),
-                              RegionItem(regionName: "Kostanay region"),
-                              SizedBox(height: 30),
-                              RegionItem(regionName: "Akmolo region"),
-                              SizedBox(height: 30),
-                              RegionItem(regionName: "West-Kazakhstan region"),
-                              SizedBox(height: 30),
-                              RegionItem(regionName: "Atyrau region"),
-                            ],
+                      children: const [
+                        Text(
+                          "Regions",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
                         ),
-                        const SizedBox(width: 32),
-
-                        // Right Side: Map
-                        Expanded(
-                          flex: 3,
-                          child: SvgPicture.asset(
-                            'assets/maps/kazakhstan_map.svg',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
+                        SizedBox(height: 30),
+                        RegionItem(regionName: "North-Kazakhstan region"),
+                        SizedBox(height: 30),
+                        RegionItem(regionName: "Kostanay region"),
+                        SizedBox(height: 30),
+                        RegionItem(regionName: "Akmolo region"),
+                        SizedBox(height: 30),
+                        RegionItem(regionName: "West-Kazakhstan region"),
+                        SizedBox(height: 30),
+                        RegionItem(regionName: "Atyrau region"),
                       ],
+                    ),
+                  ),
+                  const SizedBox(width: 5), // Adds spacing between regions and map
+
+                  // **SVG Kazakhstan Map**
+                  Expanded(
+                    flex: 3,
+                    child: SvgPicture.asset(
+                      'assets/maps/kazakhstan_map.svg',
+                      fit: BoxFit.contain,
+                      width: MediaQuery.of(context).size.width * 0.8, // Adjust width
+                      height: MediaQuery.of(context).size.width * 0.5, // Adjust height
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  void _showAccountMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF0B1D26),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.settings, color: Colors.white),
-                title: const Text(
-                  'Settings',
-                  style: TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfilePage()),
-                  );
-                },
+            const SizedBox(height: 40), // Extra spacing before Google Map
+
+            // **Google Map Widget (Centered Below SVG Map and Region List)**
+            Center(
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.85, // 85% width of screen
+                height: 350, // Adjust height as needed
+                child: const GoogleMapWidget(),
               ),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.redAccent),
-                title: const Text(
-                  'Log Out',
-                  style: TextStyle(color: Colors.redAccent),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginPage()),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _NavigationButton extends StatelessWidget {
-  final String title;
-  final VoidCallback onPressed;
-
-  const _NavigationButton({required this.title, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 20.0),
-        child: Text(
-          title,
-          style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );
   }
 }
 
-class DatePickerWidget extends StatelessWidget {
+class DatePickerWidget extends StatefulWidget {
   const DatePickerWidget({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      height: 40,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: const [
-          Text(
-            "07.10.2024",
-            style: TextStyle(fontSize: 14, color: Colors.black87),
+  _DatePickerWidgetState createState() => _DatePickerWidgetState();
+}
+
+class _DatePickerWidgetState extends State<DatePickerWidget> {
+  DateTime selectedDate = DateTime.now(); // Default to today's date
+
+  Future<void> _selectDate(BuildContext context) async {
+    DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedDate, // Start from the currently selected date
+      firstDate: DateTime.now(), // Disable past dates
+      lastDate: DateTime(2100), // Set an upper limit (adjust if needed)
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            primaryColor: Colors.blueAccent,
+            hintColor: Colors.blueAccent,
+            colorScheme: ColorScheme.dark(primary: Colors.blueAccent),
+            dialogBackgroundColor: Colors.black,
           ),
-          SizedBox(width: 8),
-          Icon(Icons.calendar_today, size: 16, color: Colors.black54),
-        ],
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null && pickedDate != selectedDate) {
+      setState(() {
+        selectedDate = pickedDate;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String formattedDate = DateFormat("dd.MM.yyyy").format(selectedDate);
+
+    return GestureDetector(
+      onTap: () => _selectDate(context), // Open date picker on tap
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Text(
+              formattedDate, // Display selected date
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.calendar_today, size: 16, color: Colors.black54),
+          ],
+        ),
       ),
     );
   }
 }
+
 
 class RegionItem extends StatelessWidget {
   final String regionName;
@@ -282,6 +212,44 @@ class RegionItem extends StatelessWidget {
           style: const TextStyle(fontSize: 16, color: Colors.white),
         ),
       ],
+    );
+  }
+}
+
+class GoogleMapWidget extends StatefulWidget {
+  const GoogleMapWidget({super.key});
+
+  @override
+  _GoogleMapWidgetState createState() => _GoogleMapWidgetState();
+}
+
+class _GoogleMapWidgetState extends State<GoogleMapWidget> {
+  GoogleMapController? mapController;
+
+  final LatLng _initialPosition = const LatLng(48.0196, 66.9237);
+
+  void _onMapCreated(GoogleMapController controller) {
+    setState(() {
+      mapController = controller;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.white30),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: GoogleMap(
+        onMapCreated: _onMapCreated,
+        initialCameraPosition: CameraPosition(
+          target: _initialPosition,
+          zoom: 4.5,
+        ),
+        myLocationButtonEnabled: true,
+        zoomControlsEnabled: true,
+      ),
     );
   }
 }

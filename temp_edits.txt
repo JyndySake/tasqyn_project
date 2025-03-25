@@ -1,0 +1,235 @@
+# Changes for statistics_and_predictions_page.dart
+
+## 1. Update _generateFallbackData method:
+```dart
+  // Fallback method to generate mock data if API call fails
+  List<Map<String, dynamic>> _generateFallbackData(String period) {
+    print('Generating fallback data for period: $period');
+    final List<Map<String, dynamic>> data = [];
+    
+    // Using current date as the reference point
+    final now = DateTime.now();
+    final dateFormat = DateFormat('MMM d');
+    final monthFormat = DateFormat('MMMM'); // Full month name format
+    
+    // Generate data based on the requested period
+    if (period == '12months') {
+      // Generate data for each month January to December
+      for (int i = 1; i <= 12; i++) {
+        // Create date for first day of each month of current year
+        final date = DateTime(now.year, i, 1);
+        
+        // Calculate risk value as percentage (0-100%)
+        double monthRisk = 35.0 + 25.0 * sin((i - 1) * 30 * pi / 180);
+        
+        // Log for debugging
+        print('12months period: month=$i, date=$date, monthName=${monthFormat.format(date)}, risk=$monthRisk');
+        
+        data.add({
+          'date': monthFormat.format(date),
+          'flood_risk_month': monthRisk,
+        });
+      }
+    } else if (period == '30days') {
+      // Generate daily data for the NEXT 30 days
+      for (int i = 0; i < 30; i++) {
+        final date = now.add(Duration(days: i));
+        final month = date.month;
+        final day = date.day;
+        
+        // Base risk varies by month in a sinusoidal pattern (as percentage 0-100)
+        double baseRisk = 40.0 + 20.0 * sin((month - 1) * 30 * pi / 180);
+        // Add daily variation based on day of month
+        final dailyVariation = (day % 10) * 1.5;
+        
+        data.add({
+          'date': dateFormat.format(date),
+          'flood_risk': baseRisk + dailyVariation,
+        });
+      }
+    } else if (period == '7days') {
+      // Generate daily data for the NEXT 7 days
+      for (int i = 0; i < 7; i++) {
+        final date = now.add(Duration(days: i));
+        final month = date.month;
+        final day = date.day;
+        
+        // Base risk varies by month in a sinusoidal pattern (as percentage 0-100)
+        double baseRisk = 40.0 + 20.0 * sin((month - 1) * 30 * pi / 180);
+        // Add daily variation based on day of month
+        final dailyVariation = (day % 5) * 2.0;
+        
+        data.add({
+          'date': dateFormat.format(date),
+          'flood_risk': baseRisk + dailyVariation,
+        });
+      }
+    }
+    
+    return data;
+  }
+```
+
+## 2. Update PredictionsAndStatisticsSection:
+```dart
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: AspectRatio(
+        aspectRatio: 2.5,
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceBetween,
+            barTouchData: BarTouchData(enabled: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    // Show percentage labels on y-axis (0%, 25%, 50%, 75%, 100%)
+                    if (value % 25 == 0 && value <= 100) {
+                      return Text(
+                        '${value.toInt()}%', 
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.left,
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 40,
+                  interval: 25, // Show labels at 25% intervals
+                ),
+              ),
+              rightTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    // Show factor name only at the top
+                    return value == 100 
+                        ? Text(
+                            selectedFactor, 
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.right,
+                          )
+                        : const SizedBox.shrink();
+                  },
+                  reservedSize: 60,
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    int index = value.toInt();
+                    if (index >= 0 && index < timeLabels.length) {
+                      return Text(timeLabels[index], style: const TextStyle(color: Colors.white, fontSize: 10));
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 30,
+                ),
+              ),
+            ),
+            gridData: FlGridData(show: true),
+            borderData: FlBorderData(show: false),
+            barGroups: _buildBarGroups(timeLabels.length),
+            maxY: 100.0, // Set max Y to 100 for percentage
+          ),
+        ),
+      ),
+    );
+  }
+```
+
+## 3. Update FloodRiskLineChart:
+```dart
+  @override
+  void initState() {
+    super.initState();
+    final random = Random();
+    
+    // Generate realistic looking flood risk data (percentages from 0-100)
+    spots = List.generate(widget.timeLabels.length, (index) {
+      // Base value + some randomness
+      return FlSpot(index.toDouble(), 30.0 + random.nextDouble() * 40.0);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: AspectRatio(
+        aspectRatio: 2.5,
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(show: true),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    // Show percentage labels on y-axis
+                    if (value % 25 == 0 && value <= 100) {
+                      return Text(
+                        '${value.toInt()}%', 
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 40,
+                  interval: 25,
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    int index = value.toInt();
+                    if (index >= 0 && index < widget.timeLabels.length) {
+                      return Text(widget.timeLabels[index], style: const TextStyle(color: Colors.white, fontSize: 10));
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 30,
+                ),
+              ),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: spots,
+                isCurved: true,
+                color: Colors.blueAccent,
+                barWidth: 2,
+              ),
+              LineChartBarData(
+                spots: List.generate(widget.timeLabels.length, (index) {
+                  // Second line with different pattern but still within 0-100 range
+                  final random = Random(index);
+                  return FlSpot(index.toDouble(), 25.0 + random.nextDouble() * 45.0);
+                }),
+                isCurved: true,
+                color: Colors.amber,
+                barWidth: 2,
+              ),
+            ],
+            minY: 0,
+            maxY: 100, // Set max Y to 100 for percentage
+          ),
+        ),
+      ),
+    );
+  }
+```

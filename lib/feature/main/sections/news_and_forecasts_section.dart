@@ -12,7 +12,6 @@ class NewsAndForecastsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section title and action
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -114,7 +113,7 @@ class NewsCard extends StatelessWidget {
       height: 758,   // Matches the height from the first screenshot
       padding: const EdgeInsets.all(24), // Matches the padding
       decoration: BoxDecoration(
-        color: const Color(0xFF121212), // Background color (dark)
+        color: const Color(0xFF0B1D26), // Background color (dark)
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Colors.white, // Border color

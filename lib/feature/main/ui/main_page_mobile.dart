@@ -10,10 +10,8 @@ import 'package:project_app/feature/main/mobile_sections/weather_section_mobile.
 import 'package:project_app/feature/privacy/privacy_policy.dart';
 import 'package:project_app/feature/safety_tips/safety_tips.dart';
 import 'package:project_app/feature/emergency_contacts/emergency_contacts.dart';
-import 'package:project_app/feature/main/sections/map_screen.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:project_app/feature/widget/nav_bar.dart';
 
 void main() {
   runApp(const FloodPredictionAppMobile());
@@ -27,11 +25,10 @@ class FloodPredictionAppMobile extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
-      home: const MainPage(),
+      home: const HomePage(),
     );
   }
 }
-
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -72,186 +69,123 @@ class _MainPageState extends State<MainPage> {
           ),
         ),
         actions: [
-  IconButton(
-    icon: const Icon(Icons.notifications, color: Colors.white),
-    onPressed: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const NotificationApp(),
-        ),
-      );
-    },
-  ),
-],
-
-      ),
-     drawer: Drawer(
-  backgroundColor: Colors.white,
-  child: SafeArea(
-    child: Container(
-      color: Colors.white, // Set the entire drawer background to white
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          // Header with a user image
-          const DrawerHeader(
-            decoration: BoxDecoration(
-              color: Colors.white, // Set header background to white
-            ),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundImage: AssetImage('assets/images/user_profile.jpg'), // Replace with the actual image path
+          IconButton(
+            icon: const Icon(Icons.notifications, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationApp(),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  'Username',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black, // Text color black
+              );
+            },
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        backgroundColor: Colors.white,
+        child: SafeArea(
+          child: Container(
+            color: Colors.white,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                const DrawerHeader(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
                   ),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundImage: AssetImage('assets/images/user_profile.jpg'),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Username',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.shield_outlined, color: Colors.black),
+                  title: const Text(
+                    'Safety Tips',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SafetyTipsPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.phone_outlined, color: Colors.black),
+                  title: const Text(
+                    'Emergency Contacts',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EmergencyContactsPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.privacy_tip_outlined, color: Colors.black),
+                  title: const Text(
+                    'Privacy Policy',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyPolicyPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.help_outline, color: Colors.black),
+                  title: const Text(
+                    'Helps & FAQs',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  onTap: () {
+                    // Add functionality
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.black),
+                  title: const Text(
+                    'Log Out',
+                    style: TextStyle(color: Colors.black),
+                  ),
+                  onTap: () {
+                    // Add functionality
+                  },
                 ),
               ],
             ),
           ),
-          // Menu items
-          ListTile(
-            leading: const Icon(Icons.person_outline, color: Colors.black),
-            title: const Text(
-              'My Profile',
-              style: TextStyle(color: Colors.black),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProfilePageApp(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.shield_outlined, color: Colors.black),
-            title: const Text(
-              'Safety Tips',
-              style: TextStyle(color: Colors.black),
-            ),
-            onTap: () {
-                Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const SafetyTipsPage(),
         ),
-      );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.phone_outlined, color: Colors.black),
-            title: const Text(
-              'Emergency Contacts',
-              style: TextStyle(color: Colors.black),
-            ),
-            onTap: () {
-              Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const EmergencyContactsPage(),
-        ),
-      );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.email_outlined, color: Colors.black),
-            title: const Text(
-              'Contact Us',
-              style: TextStyle(color: Colors.black),
-            ),
-            onTap: () {
-              // Add functionality
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined, color: Colors.black),
-            title: const Text(
-              'Privacy Policy',
-              style: TextStyle(color: Colors.black),
-            ),
-            onTap: () {
-              Navigator.push(
-  context,
-  MaterialPageRoute(builder: (context) => const PrivacyPolicyPage()),
-);
-
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.help_outline, color: Colors.black),
-            title: const Text(
-              'Helps & FAQs',
-              style: TextStyle(color: Colors.black),
-            ),
-            onTap: () {
-              // Add functionality
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.black),
-            title: const Text(
-              'Sign Out',
-              style: TextStyle(color: Colors.black),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LoginPageMobile(),
-                ),
-              );
-            },
-          ),
-        ],
       ),
-    ),
-  ),
-),
-
-
-      extendBodyBehindAppBar: true,
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: CustomNavBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFFFBD784),
-        unselectedItemColor: Colors.black,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.article),
-            label: 'News',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: 'Stats',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.map),
-            label: 'Map',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle),
-            label: 'Profile',
-          ),
-        ],
       ),
     );
   }
@@ -303,7 +237,7 @@ class MainContentPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                 WeatherSection(),
+                WeatherSection(),
                 const SectionContainer(
                   title: "Alerts and Current Events",
                   subtitle: "News & Forecasts",
@@ -408,41 +342,40 @@ class SectionContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF0B1D26), 
+      color: const Color(0xFF0B1D26),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-         
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 height: 2,
-                width: 20, 
-                color: const Color(0xFFFBD784), 
+                width: 20,
+                color: const Color(0xFFFBD784),
               ),
-              const SizedBox(width: 8), 
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title.toUpperCase(),
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Color(0xFFFBD784), 
+                    color: Color(0xFFFBD784),
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.2,
                   ),
                 ),
               ),
-              const SizedBox(width: 8), 
+              const SizedBox(width: 8),
               Icon(
-                Icons.open_in_new, 
+                Icons.open_in_new,
                 color: Colors.white,
                 size: 25,
               ),
             ],
           ),
-          const SizedBox(height: 8), 
+          const SizedBox(height: 8),
           Text(
             subtitle,
             style: const TextStyle(
@@ -451,8 +384,8 @@ class SectionContainer extends StatelessWidget {
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 16), 
-          child, 
+          const SizedBox(height: 16),
+          child,
         ],
       ),
     );
@@ -555,7 +488,6 @@ class PredictionsAndStatisticsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Section title
           const Text(
             "Flood Risk Trends by Time Frame and Category",
             textAlign: TextAlign.center,
@@ -567,7 +499,7 @@ class PredictionsAndStatisticsSection extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           CustomPaint(
-            size: const Size(300, 150), 
+            size: const Size(300, 150),
             painter: SemiCircleChartPainter(),
           ),
           const SizedBox(height: 16),
@@ -575,19 +507,19 @@ class PredictionsAndStatisticsSection extends StatelessWidget {
             children: const [
               LegendItem(
                 label: "Snow melting",
-                color: Color(0xFF9C7FF5), 
+                color: Color(0xFF9C7FF5),
                 percentage: "45%",
               ),
               SizedBox(height: 8),
               LegendItem(
                 label: "Temperature",
-                color: Color(0xFFCA9AF8), 
+                color: Color(0xFFCA9AF8),
                 percentage: "24%",
               ),
               SizedBox(height: 8),
               LegendItem(
                 label: "Rainfall intensity",
-                color: Color(0xFF6DCFF6), 
+                color: Color(0xFF6DCFF6),
                 percentage: "15%",
               ),
             ],
@@ -609,7 +541,7 @@ class SemiCircleChartPainter extends CustomPainter {
       ..strokeWidth = strokeWidth;
 
     final Paint audienceArc = Paint()
-      ..color = const Color(0xFF9C7FF5) 
+      ..color = const Color(0xFF9C7FF5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -621,7 +553,7 @@ class SemiCircleChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final Paint rainfallArc = Paint()
-      ..color = const Color(0xFF6DCFF6) 
+      ..color = const Color(0xFF6DCFF6)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -631,8 +563,8 @@ class SemiCircleChartPainter extends CustomPainter {
         center: Offset(size.width / 2, size.height),
         radius: size.height,
       ),
-      3.14, 
-      3.14, 
+      3.14,
+      3.14,
       false,
       baseCircle,
     );
@@ -643,7 +575,7 @@ class SemiCircleChartPainter extends CustomPainter {
         radius: size.height,
       ),
       3.14,
-      1.5, 
+      1.5,
       false,
       audienceArc,
     );
@@ -653,8 +585,8 @@ class SemiCircleChartPainter extends CustomPainter {
         center: Offset(size.width / 2, size.height),
         radius: size.height,
       ),
-      4.64, 
-      0.9, 
+      4.64,
+      0.9,
       false,
       temperatureArc,
     );
@@ -664,8 +596,8 @@ class SemiCircleChartPainter extends CustomPainter {
         center: Offset(size.width / 2, size.height),
         radius: size.height,
       ),
-      5.74, 
-      0.5, 
+      5.74,
+      0.5,
       false,
       rainfallArc,
     );
@@ -690,7 +622,7 @@ class LegendItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center, 
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
           width: 10,
@@ -700,7 +632,7 @@ class LegendItem extends StatelessWidget {
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 8), 
+        const SizedBox(width: 8),
         Text(
           label,
           style: const TextStyle(
@@ -708,7 +640,7 @@ class LegendItem extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-        const SizedBox(width: 16), 
+        const SizedBox(width: 16),
         Text(
           percentage,
           style: const TextStyle(
@@ -722,17 +654,63 @@ class LegendItem extends StatelessWidget {
   }
 }
 
-
-class FloodRiskMapSection extends StatelessWidget {
+class FloodRiskMapSection extends StatefulWidget {
   const FloodRiskMapSection({super.key});
 
   @override
+  _FloodRiskMapSectionState createState() => _FloodRiskMapSectionState();
+}
+
+class _FloodRiskMapSectionState extends State<FloodRiskMapSection> {
+  GoogleMapController? _controller;
+  final LatLng _initialPosition = const LatLng(48.0196, 66.9237);
+
+  final Set<Marker> _markers = {
+    Marker(
+      markerId: const MarkerId("kazakhstan"),
+      position: const LatLng(48.0196, 66.9237),
+      infoWindow: const InfoWindow(title: "Flood Risk Area"),
+    ),
+  };
+
+  void _onMapCreated(GoogleMapController controller) {
+    _controller = controller;
+    _controller?.animateCamera(
+      CameraUpdate.newLatLngZoom(const LatLng(49.0, 68.0), 6.0),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Flood Risk Map Placeholder',
-        style: TextStyle(color: Colors.white),
-      ),
+    return Column(
+      children: [
+        const Text(
+          "Flood Risk Map",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        const SizedBox(height: 16),
+
+        SizedBox(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: 300,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: GoogleMap(
+              onMapCreated: _onMapCreated,
+              initialCameraPosition: CameraPosition(
+                target: _initialPosition,
+                zoom: 5.5,
+              ),
+              myLocationButtonEnabled: true,
+              zoomControlsEnabled: true,
+              markers: _markers,
+              mapType: MapType.normal,
+              compassEnabled: true,
+              trafficEnabled: true,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

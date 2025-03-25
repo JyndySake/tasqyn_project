@@ -125,20 +125,6 @@ class NewsPageApp extends StatelessWidget {
                 );
               },
             ),
-            ListTile(
-              leading: const Icon(Icons.account_circle, color: Colors.white),
-              title: const Text(
-                'Account',
-                style: TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfilePageApp()),
-                );
-              },
-            ),
              ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),
               title: const Text(

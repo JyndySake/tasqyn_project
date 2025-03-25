@@ -75,10 +75,6 @@ class ProfilePageApp extends StatelessWidget {
                           title: "Newsletter",
                           child: NewsletterSection(),
                         ),
-                        const ProfileSectionContainer(
-                          title: "Contact Us",
-                          child: ContactUsForm(),
-                        ),
                       ],
                     ),
                   ),

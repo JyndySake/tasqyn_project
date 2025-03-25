@@ -4,6 +4,10 @@ import 'package:project_app/feature/news/news_mobile_page.dart';
 import 'package:project_app/feature/profile/ui/profile_mobile.dart';
 import 'package:project_app/feature/map/ui/map_mobile.dart';
 import 'package:project_app/feature/auth/ui/login_page_mobile.dart';
+import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:math';
 
 void main() {
   runApp(const FloodPredictionApp());
@@ -25,12 +29,86 @@ class FloodPredictionApp extends StatelessWidget {
 class StatisticsPage extends StatelessWidget {
   const StatisticsPage({super.key});
 
+  Future<List<Map<String, dynamic>>> fetchWeatherData({String period = '12months'}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:8000/api/weather-data/'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<Map<String, dynamic>> rawData = List<Map<String, dynamic>>.from(json.decode(response.body));
+        
+        // Using forecast data is preferred, but since the API may not provide it,
+        // we'll generate future forecast data from tday's date
+        return generateForecastData(period);
+      } else {
+        // If server returns an error, use generated forecast data
+        return generateForecastData(period);
+      }
+    } catch (e) {
+      // In case of error, return forecast data
+      return generateForecastData(period);
+    }
+  }
+  
+   Future<List<Map<String, dynamic>>> generateForecastData(String period) async {
+    final now = DateTime.now();
+    final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/weather-data/'));
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = json.decode(response.body);
+      
+      switch (period) {
+        case '12months':
+          return List.generate(12, (index) {
+            final date = DateTime(now.year, now.month + index);
+            final monthData = jsonData.firstWhere(
+              (item) => DateTime.parse(item['date']).month == date.month,
+              orElse: () => jsonData[index % jsonData.length],
+            );
+            return {
+              'date': DateFormat('MMMM yyyy').format(date),
+              'risk': monthData['flood_risk_month'] ?? 0,
+            };
+          });
+        case '30days':
+          return List.generate(30, (index) {
+            final date = now.add(Duration(days: index));
+            final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+            final dayData = jsonData.firstWhere(
+              (item) => DateFormat('yyyy-MM-dd').format(DateTime.parse(item['date'])) == formattedDate,
+              orElse: () => jsonData[index % jsonData.length],
+            );
+            return {
+              'date': formattedDate,
+              'risk': dayData['flood_risk'] ?? 0,
+            };
+          });
+        case '7days':
+          return List.generate(7, (index) {
+            final date = now.add(Duration(days: index));
+            final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+            final dayData = jsonData.firstWhere(
+              (item) => DateFormat('yyyy-MM-dd').format(DateTime.parse(item['date'])) == formattedDate,
+              orElse: () => jsonData[index % jsonData.length],
+            );
+            return {
+              'date': formattedDate,
+              'risk': dayData['flood_risk'] ?? 0,
+            };
+          });
+        default:
+          throw ArgumentError('Invalid period: $period');
+      }
+    } else {
+      throw Exception('Failed to load forecast data');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-       
         extendBodyBehindAppBar: true,
         body: Column(
           children: [
@@ -39,7 +117,6 @@ class StatisticsPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header with Background Image and Gradient
                     Stack(
                       children: [
                         Container(
@@ -74,29 +151,23 @@ class StatisticsPage extends StatelessWidget {
                         ),
                       ],
                     ),
-
-                    // Predictions and Statistics Section
                     const SectionContainer(
                       title: "Overview of Data by Region and Risk Level",
                       subtitle: "Predictions And Statistics",
                       child: PredictionsAndStatisticsSection(),
                     ),
-
                     SectionContainer(
                       title: "",
                       subtitle: "Flood Risk Progression Over Time",
                       child: TabSelectorWithChart(
-                        tabs: ["12 months", "30 days", "7 days", "24 hours"],
-                        chart: const LineChartWidget(),
-                      ),
+                     ),
                     ),
-
+                   
                     SectionContainer(
                       title: "",
-                      subtitle: "Water Level Volatility in Major Rivers",
-                      child: TabSelectorWithChart(
-                        tabs: ["12 months", "30 days", "7 days", "24 hours"],
-                        chart: const WaterLevelVolatilityChart(),
+                      subtitle: "Weather Data Analysis",
+                      child: WeatherDataTableSection(
+                        fetchData: fetchWeatherData,
                       ),
                     ),
                   ],
@@ -109,97 +180,96 @@ class StatisticsPage extends StatelessWidget {
     );
   }
 
-void _showMenu(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: const Color(0xFF0B1D26),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (BuildContext context) {
-      return SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.article, color: Colors.white),
-              title: const Text(
-                'News',
-                style: TextStyle(color: Colors.white),
+  void _showMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0B1D26),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.article, color: Colors.white),
+                title: const Text(
+                  'News',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const NewsPageApp()),
+                  );
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const NewsPageApp()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart, color: Colors.white),
-              title: const Text(
-                'Statistics',
-                style: TextStyle(color: Colors.white),
+              ListTile(
+                leading: const Icon(Icons.bar_chart, color: Colors.white),
+                title: const Text(
+                  'Statistics',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const FloodPredictionApp()),
+                  );
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const FloodPredictionApp()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.map, color: Colors.white),
-              title: const Text(
-                'Map',
-                style: TextStyle(color: Colors.white),
+              ListTile(
+                leading: const Icon(Icons.map, color: Colors.white),
+                title: const Text(
+                  'Map',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const MapPageApp()),
+                  );
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const MapPageApp()),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.account_circle, color: Colors.white),
-              title: const Text(
-                'Account',
-                style: TextStyle(color: Colors.white),
+              ListTile(
+                leading: const Icon(Icons.account_circle, color: Colors.white),
+                title: const Text(
+                  'Account',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfilePageApp()),
+                  );
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ProfilePageApp()),
-                );
-              },
-            ),
-             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.redAccent),
-              title: const Text(
-                'Log Out',
-                style: TextStyle(color: Colors.redAccent),
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.redAccent),
+                title: const Text(
+                  'Log Out',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const LoginPageMobile()),
+                  );
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const LoginPageMobile()),
-                );
-              },
-            ),
-          ],
-        ),
-      );
-    },
-  );
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
-}
-
 
 class HeaderSection extends StatelessWidget {
   const HeaderSection({super.key});
@@ -248,7 +318,7 @@ class SectionContainer extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       decoration: const BoxDecoration(
-        color: Color(0xFF0B1D26), // Background color
+        color: Color(0xFF0B1D26), 
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,251 +502,270 @@ class LegendItem extends StatelessWidget {
   }
 }
 
-class WaterLevelVolatilityChart extends StatelessWidget {
-  const WaterLevelVolatilityChart({super.key});
+class BarChartWidget extends StatefulWidget {
+  final String selectedTimeframe;
+  final String selectedDataType;
+
+  const BarChartWidget({
+    Key? key,
+    required this.selectedTimeframe,
+    required this.selectedDataType,
+  }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 2.5, // Adjust the ratio for a clean layout
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawHorizontalLine: true,
-            getDrawingHorizontalLine: (value) => const FlLine(
-              color: Colors.white12,
-              strokeWidth: 1,
-            ),
-            drawVerticalLine: false,
-          ),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 40,
-                getTitlesWidget: (value, meta) {
-                  if (value % 10 == 0) {
-                    return Text(
-                      '${value ~/ 1000}k',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 32,
-                getTitlesWidget: (value, meta) {
-                  const months = [
-                    'Jan',
-                    'Feb',
-                    'Mar',
-                    'Apr',
-                    'May',
-                    'Jun',
-                    'Jul',
-                    'Aug',
-                    'Sep',
-                    'Oct',
-                    'Nov',
-                    'Dec'
-                  ];
-                  if (value >= 0 && value < months.length) {
-                    return Text(
-                      months[value.toInt()],
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          borderData: FlBorderData(show: false),
-          minY: 0,
-          maxY: 60000,
-          lineBarsData: [
-            LineChartBarData(
-              spots: _generateLineData(),
-              isCurved: false, // Keep lines straight for volatility
-              color: Colors.lightBlueAccent,
-              barWidth: 2,
-              dotData: FlDotData(show: false), // Hide dots for clarity
-              belowBarData: BarAreaData(show: false), // No shaded area
+  _BarChartWidgetState createState() => _BarChartWidgetState();
+}
+
+class _BarChartWidgetState extends State<BarChartWidget> {
+  late Future<List<BarChartGroupData>> _dataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _dataFuture = _fetchData();
+  }
+
+  @override
+  void didUpdateWidget(BarChartWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedTimeframe != oldWidget.selectedTimeframe ||
+        widget.selectedDataType != oldWidget.selectedDataType) {
+      _dataFuture = _fetchData();
+    }
+  }
+
+  Future<List<BarChartGroupData>> _fetchData() async {
+    final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/weather-data/'));
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return _processData(data);
+    } else {
+      throw Exception('Failed to load data');
+    }
+  }
+
+  List<BarChartGroupData> _processData(List<dynamic> data) {
+    List<BarChartGroupData> barGroups = [];
+    int range = widget.selectedTimeframe == "30 days" ? 30 : 7;
+    String dataKey = _getDataKey();
+
+    DateTime now = DateTime.now();
+
+    for (int i = 0; i < range; i++) {
+      DateTime currentDate = now.add(Duration(days: i));
+      String formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
+
+      var matchingData = data.firstWhere(
+        (item) => item['date'].startsWith(formattedDate),
+        orElse: () => null,
+      );
+
+      double value = matchingData != null ? matchingData[dataKey].toDouble() : 0.0;
+
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: value,
+              color: _getBarColor(i),
+              width: 16,
+              borderRadius: BorderRadius.circular(4),
             ),
           ],
         ),
-      ),
-    );
+      );
+    }
+    return barGroups;
   }
 
-  /// Generates the line data (sample values for each month).
-  List<FlSpot> _generateLineData() {
-    return [
-      const FlSpot(0, 15000),
-      const FlSpot(1, 18000),
-      const FlSpot(2, 12000),
-      const FlSpot(3, 30000),
-      const FlSpot(4, 50000),
-      const FlSpot(5, 40000),
-      const FlSpot(6, 38000),
-      const FlSpot(7, 10000),
-      const FlSpot(8, 30000),
-      const FlSpot(9, 35000),
-      const FlSpot(10, 32000),
-      const FlSpot(11, 45000),
+  String _getDataKey() {
+    switch (widget.selectedDataType) {
+      case 'Humidity':
+        return "humidity_avg";
+      case 'Pressure':
+        return "pressure_station";
+      case 'Cloud Cover':
+        return "cloud_total";
+      case 'Soil Moisture':
+        return "soil_temp_avg";
+      case 'Air Temperature':
+        return "air_temp_avg";
+      case 'Wind Speed':
+        return "wind_speed_avg";
+      case 'Precipitation':
+        return "precipitation";
+      case 'Flood Risk':
+        return "flood_risk";
+      default:
+        return "humidity_avg";
+    }
+  }
+
+  Color _getBarColor(int index) {
+    final colors = [
+      const Color(0xFF6DD5FA),
+      const Color(0xFF2980B9),
+      const Color(0xFF1E88E5),
     ];
+    return colors[index % colors.length];
   }
-}
 
+  List<String> _generateLabels() {
+    DateTime now = DateTime.now();
+    List<String> labels = [];
+    int range = widget.selectedTimeframe == "30 days" ? 30 : 7;
 
-class LineChartWidget extends StatelessWidget {
-  const LineChartWidget({super.key});
+    for (int i = 0; i < range; i++) {
+      labels.add(DateFormat('MMM d').format(now.add(Duration(days: i))));
+    }
+
+    return labels;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 2.5, // Adjust aspect ratio to match the design
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawHorizontalLine: true,
-            getDrawingHorizontalLine: (value) => const FlLine(
-              color: Colors.white12,
-              strokeWidth: 1,
+    List<String> timeLabels = _generateLabels();
+    return FutureBuilder<List<BarChartGroupData>>(
+      future: _dataFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('No data available'));
+        } else {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blueGrey[900]!,
+                  Colors.blueGrey[800]!,
+                  Colors.blueGrey[700]!,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  spreadRadius: 2,
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            drawVerticalLine: false,
-          ),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 40,
-                getTitlesWidget: (value, meta) {
-                  if (value % 10 == 0) {
-                    return Text(
-                      '${value ~/ 1000}k',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
+            padding: const EdgeInsets.all(16),
+            child: AspectRatio(
+              aspectRatio: 2,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: _getMaxY(),
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          '${rod.toY.toStringAsFixed(2)}',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        );
+                      },
+                    )
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          int index = value.toInt();
+                          if (index < timeLabels.length) {
+                            if (widget.selectedTimeframe == "30 days") {
+                              if (index % 5 == 0 || index == timeLabels.length - 1) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    timeLabels[index],
+                                    style: const TextStyle(color: Colors.white70, fontSize: 10),
+                                  ),
+                                );
+                              }
+                            } else {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  timeLabels[index],
+                                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                                ),
+                              );
+                            }
+                          }
+                          return const SizedBox.shrink();
+                        },
+                        reservedSize: 40,
                       ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            value.toStringAsFixed(1),
+                            style: const TextStyle(color: Colors.white70, fontSize: 10),
+                          );
+                        },
+                        reservedSize: 40,
+                      ),
+                    ),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: Colors.white10,
+                        strokeWidth: 1,
+                      );
+                    },
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: snapshot.data,
+                ),
               ),
             ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 32,
-                getTitlesWidget: (value, meta) {
-                  const months = [
-                    'Jan',
-                    'Feb',
-                    'Mar',
-                    'Apr',
-                    'May',
-                    'Jun',
-                    'Jul',
-                    'Aug',
-                    'Sep',
-                    'Oct',
-                    'Nov',
-                    'Dec'
-                  ];
-                  if (value >= 0 && value < months.length) {
-                    return Text(
-                      months[value.toInt()],
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          ),
-          borderData: FlBorderData(show: false),
-          minY: 0,
-          maxY: 60000,
-          lineBarsData: [
-            LineChartBarData(
-              spots: _generateLine1Data(),
-              isCurved: true,
-              color: Colors.yellowAccent,
-              barWidth: 3,
-              dotData: FlDotData(show: false),
-              belowBarData: BarAreaData(show: false),
-            ),
-            LineChartBarData(
-              spots: _generateLine2Data(),
-              isCurved: true,
-              color: Colors.cyanAccent,
-              barWidth: 3,
-              dotData: FlDotData(show: false),
-              belowBarData: BarAreaData(show: false),
-            ),
-          ],
-        ),
-      ),
+          );
+        }
+      },
     );
   }
 
-  /// Sample data for the first line
-  List<FlSpot> _generateLine1Data() {
-    return [
-      const FlSpot(0, 5000),
-      const FlSpot(1, 55000),
-      const FlSpot(2, 20000),
-      const FlSpot(3, 30000),
-      const FlSpot(4, 15000),
-      const FlSpot(5, 60000),
-      const FlSpot(6, 40000),
-      const FlSpot(7, 35000),
-      const FlSpot(8, 20000),
-      const FlSpot(9, 25000),
-      const FlSpot(10, 10000),
-      const FlSpot(11, 0),
-    ];
-  }
-
-  /// Sample data for the second line
-  List<FlSpot> _generateLine2Data() {
-    return [
-      const FlSpot(0, 10000),
-      const FlSpot(1, 20000),
-      const FlSpot(2, 15000),
-      const FlSpot(3, 40000),
-      const FlSpot(4, 30000),
-      const FlSpot(5, 50000),
-      const FlSpot(6, 30000),
-      const FlSpot(7, 45000),
-      const FlSpot(8, 35000),
-      const FlSpot(9, 40000),
-      const FlSpot(10, 20000),
-      const FlSpot(11, 0),
-    ];
+  double _getMaxY() {
+    switch (widget.selectedDataType) {
+      case 'Humidity':
+        return 100;
+      case 'Pressure':
+        return 1100;
+      case 'Cloud Cover':
+        return 10;
+      case 'Soil Moisture':
+        return 50;
+      case 'Air Temperature':
+        return 40;
+      case 'Wind Speed':
+        return 20;
+      case 'Precipitation':
+        return 50;
+      case 'Flood Risk':
+        return 100;
+      default:
+        return 100;
+    }
   }
 }
-
 
 class TabSelector extends StatelessWidget {
   final List<String> tabs;
@@ -693,37 +782,31 @@ class TabSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 50, // Adjust height for better visibility
+      height: 40,
       decoration: BoxDecoration(
-        color: const Color(0xFF0B1D26),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey, width: 1),
+        color: Colors.blueGrey[900],
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: tabs.asMap().entries.map((entry) {
           final index = entry.key;
           final text = entry.value;
-
-          final bool isSelected = selectedIndex == index;
+          final isSelected = selectedIndex == index;
 
           return Expanded(
             child: GestureDetector(
               onTap: () => onTabChanged(index),
               child: Container(
                 alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+                  color: isSelected ? Colors.blue : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   text,
-                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isSelected ? Colors.black : Colors.white,
+                    color: isSelected ? Colors.white : Colors.white70,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 14,
                   ),
                 ),
               ),
@@ -736,39 +819,335 @@ class TabSelector extends StatelessWidget {
 }
 
 class TabSelectorWithChart extends StatefulWidget {
-  final List<String> tabs;
-  final Widget chart;
-
-  const TabSelectorWithChart({
-    Key? key,
-    required this.tabs,
-    required this.chart,
-  }) : super(key: key);
+  const TabSelectorWithChart({Key? key}) : super(key: key);
 
   @override
   _TabSelectorWithChartState createState() => _TabSelectorWithChartState();
 }
 
 class _TabSelectorWithChartState extends State<TabSelectorWithChart> {
-  int _selectedIndex = 0;
+  int _selectedTimeframeIndex = 0;
+  int _selectedDataTypeIndex = 0;
+  final List<String> timeframes = ['7 days', '30 days'];
+  final List<String> dataTypes = [
+    'Humidity',
+    'Pressure',
+    'Cloud Cover',
+    'Soil Moisture',
+    'Air Temperature',
+    'Wind Speed',
+    'Precipitation',
+    'Flood Risk'
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TabSelector(
+          tabs: timeframes,
+          selectedIndex: _selectedTimeframeIndex,
+          onTabChanged: (index) {
+            setState(() {
+              _selectedTimeframeIndex = index;
+            });
+          },
+        ),
+        const SizedBox(height: 16),
+        TabSelector(
+          tabs: dataTypes,
+          selectedIndex: _selectedDataTypeIndex,
+          onTabChanged: (index) {
+            setState(() {
+              _selectedDataTypeIndex = index;
+            });
+          },
+        ),
+        const SizedBox(height: 24),
+        BarChartWidget(
+          selectedTimeframe: timeframes[_selectedTimeframeIndex],
+          selectedDataType: dataTypes[_selectedDataTypeIndex],
+        ),
+      ],
+    );
+  }
+}
+
+
+class WeatherDataTableSection extends StatefulWidget {
+  final Future<List<Map<String, dynamic>>> Function({String period}) fetchData;
+
+  const WeatherDataTableSection({Key? key, required this.fetchData}) : super(key: key);
+
+  @override
+  State<WeatherDataTableSection> createState() => _WeatherDataTableSectionState();
+}
+
+class TimeRangeFilter extends StatelessWidget {
+  final List<String> timeframes;
+  final String selectedTimeframe;
+  final Function(String) onTimeframeChanged;
+
+  const TimeRangeFilter({
+    Key? key,
+    required this.timeframes,
+    required this.selectedTimeframe,
+    required this.onTimeframeChanged,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      children: timeframes.map((timeframe) {
+        return ChoiceChip(
+          label: Text(
+            timeframe,
+            style: TextStyle(
+              color: selectedTimeframe == timeframe ? Colors.black : Colors.white,
+            ),
+          ),
+          selected: selectedTimeframe == timeframe,
+          selectedColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: Colors.white70),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          onSelected: (bool selected) {
+            if (selected) {
+              onTimeframeChanged(timeframe);
+            }
+          },
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _WeatherDataTableSectionState extends State<WeatherDataTableSection> {
+  String _selectedTimeframe = "12 months";
+  List<Map<String, dynamic>> _data = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      String apiPeriod;
+      switch (_selectedTimeframe) {
+        case "12 months": apiPeriod = '12months'; break;
+        case "30 days": apiPeriod = '30days'; break;
+        case "7 days": apiPeriod = '7days'; break;
+        default: apiPeriod = '12months';
+      }
+
+      final fetchedData = await widget.fetchData(period: apiPeriod);
+      
+      if (fetchedData.isNotEmpty) {
+        setState(() {
+          _data = _processData(fetchedData);
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('No data available');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _data = [];
+      });
+      print('Error loading data: $e');
+    }
+  }
+
+  List<Map<String, dynamic>> _processData(List<Map<String, dynamic>> rawData) {
+    return rawData;
+  }
+
+  List<FlSpot> _getChartData() {
+    return _data.asMap().entries.map((entry) {
+      final num value = entry.value['risk'] ?? 0;
+      return FlSpot(entry.key.toDouble(), value.toDouble());
+    }).toList();
+  }
+
+  List<String> _getDateLabels() {
+    if (_selectedTimeframe == "12 months") {
+      final now = DateTime.now();
+      return List.generate(12, (index) {
+        final month = (now.month + index) % 12;
+        return _getMonthAbbreviation(month == 0 ? 12 : month);
+      });
+    } else {
+      return _data.map((item) {
+        DateTime date = DateTime.parse(item['date']);
+        return '${date.day} ${_getMonthAbbreviation(date.month)}';
+      }).toList();
+    }
+  }
+
+  String _getMonthAbbreviation(int month) {
+    const monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return monthAbbreviations[month - 1];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TabSelector(
-          tabs: widget.tabs,
-          selectedIndex: _selectedIndex,
-          onTabChanged: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: TimeRangeFilter(
+            timeframes: const ["12 months", "30 days", "7 days"],
+            selectedTimeframe: _selectedTimeframe,
+            onTimeframeChanged: (String timeframe) {
+              setState(() {
+                _selectedTimeframe = timeframe;
+              });
+              _loadData();
+            },
+          ),
         ),
-        const SizedBox(height: 30),
-        widget.chart,
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (_data.isEmpty)
+          const Center(child: Text("No data available"))
+        else
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white.withOpacity(0.05),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Flood Risk Forecast",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Statistical graph showing risk percentage over time",
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                ),
+                const SizedBox(height: 24),
+                _buildWeatherGraph(),
+              ],
+            ),
+          ),
       ],
+    );
+  }
+
+  Widget _buildWeatherGraph() {
+    List<String> labels = _getDateLabels();
+    List<FlSpot> chartData = _getChartData();
+    
+    return SizedBox(
+      height: 300,
+      child: LineChart(
+        LineChartData(
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: true,
+            getDrawingHorizontalLine: (value) => FlLine(color: Colors.white10, strokeWidth: 1),
+            getDrawingVerticalLine: (value) => FlLine(color: Colors.white10, strokeWidth: 1),
+          ),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                getTitlesWidget: (value, meta) {
+                  if (value % 20 == 0 && value <= 100) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: Text('${value.toInt()}%',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        textAlign: TextAlign.right,
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                getTitlesWidget: (value, meta) {
+                  final int index = value.toInt();
+                  final int interval = _selectedTimeframe == "12 months" ? 1 : (_selectedTimeframe == "30 days" ? 5 : 1);
+                  if (index >= 0 && index < labels.length && (index % interval == 0 || index == labels.length - 1)) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(labels[index],
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: true, border: Border.all(color: Colors.white.withOpacity(0.2))),
+          minX: 0,
+          maxX: chartData.length - 1.0,
+          minY: 0,
+          maxY: 100,
+          lineBarsData: [
+            LineChartBarData(
+              spots: chartData,
+              isCurved: true,
+              color: Colors.yellowAccent,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: true,
+                getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                  radius: 4,
+                  color: Colors.yellowAccent,
+                  strokeWidth: 1,
+                  strokeColor: Colors.black,
+                ),
+              ),
+              belowBarData: BarAreaData(show: true, color: Colors.yellowAccent.withOpacity(0.2)),
+            ),
+          ],
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipColor: (_) => Colors.black.withOpacity(0.8),
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((LineBarSpot spot) {
+                  final int index = spot.x.toInt();
+                  final String date = index < labels.length ? labels[index] : '';
+                  final String value = '${spot.y.toStringAsFixed(1)}%';
+                  return LineTooltipItem(
+                    '$date\n$value',
+                    const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  );
+                }).toList();
+              },
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

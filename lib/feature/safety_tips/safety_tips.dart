@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:project_app/feature/widget/nav_bar.dart';
 
 void main() {
   runApp(const MyApp());
@@ -49,21 +50,13 @@ class _SafetyTipsPageState extends State<SafetyTipsPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF0B1D26),
-        elevation: 0,
+        title: const Text('Safety Tips'),
         leading: IconButton(
-          icon: const Icon(Icons.menu),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Scaffold.of(context).openDrawer();
+            Navigator.of(context).pop();
           },
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              // Notifications functionality can go here
-            },
-          ),
-        ],
       ),
       backgroundColor: const Color(0xFF0B1D26),
       body: SingleChildScrollView(

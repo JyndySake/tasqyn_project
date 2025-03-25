@@ -52,20 +52,15 @@ class _NotificationAppState extends State<NotificationApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
       home: Scaffold(
+        backgroundColor: const Color(0xFF0B1D26),
         appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-            ),
-          ),
-          title: const Text(
-            'Notifications',
-            style: TextStyle(color: Colors.white),
+          backgroundColor: const Color(0xFF0B1D26),
+          title: const Text('Notifications'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
           ),
         ),
         drawer: Drawer(
@@ -150,7 +145,6 @@ class _NotificationAppState extends State<NotificationApp> {
             ),
           ),
         ),
-        backgroundColor: const Color(0xFF0B1D26),
         body: NotificationPage(
           notifications: notifications,
           expanded: _expanded,
