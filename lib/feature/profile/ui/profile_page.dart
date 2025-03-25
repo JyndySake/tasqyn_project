@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:project_app/feature/news/news_page.dart';
-import 'package:project_app/feature/predictions/statistics_and_predictions_page.dart';
-import 'package:project_app/feature/map/ui/map_page.dart';
-import 'package:project_app/feature/main/ui/main_page.dart';
-import 'package:project_app/feature/auth/ui/login_page.dart';
 
+import 'package:project_app/feature/main/widgets/custom_header.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -26,7 +22,7 @@ class ProfilePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Section
-              _HeaderSection(),
+             const CustomHeader(),
               const SizedBox(height: 32),
 
               // Section Title
@@ -75,114 +71,7 @@ class ProfilePage extends StatelessWidget {
 }
 
 
-class _HeaderSection extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            _NavigationButton(
-              title: "Home",
-              onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const FloodPredictionApp()),
-                  (route) => false, // Clear the navigation stack
-                );
-              },
-            ),
-            _NavigationButton(
-              title: "News",
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const NewsPage()),
-                );
-              },
-            ),
-            _NavigationButton(
-              title: "Statistics",
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PredictionsPage()),
-                );
-              },
-            ),
-            _NavigationButton(
-              title: "Map",
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ForecastMapPage()),
-                );
-              },
-            ),
-          ],
-        ),
-        GestureDetector(
-          onTap: () => _showAccountMenu(context),
-          child: Row(
-            children: const [
-              Icon(Icons.account_circle_outlined, color: Colors.white70),
-              SizedBox(width: 8),
-              Text("Account", style: TextStyle(color: Colors.white70, fontSize: 14)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-  void _showAccountMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF0B1D26),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.settings, color: Colors.white),
-                title: const Text(
-                  'Settings',
-                  style: TextStyle(color: Colors.white),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ProfilePage()),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout, color: Colors.redAccent),
-                title: const Text(
-                  'Log Out',
-                  style: TextStyle(color: Colors.redAccent),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoginPage()),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
 
 class _NavigationButton extends StatelessWidget {
   final String title;

@@ -1,0 +1,1368 @@
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
+import 'package:project_app/feature/main/widgets/custom_header.dart';
+import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:math';
+import 'dart:io' show Platform;
+import 'dart:async';
+import 'dart:ui';
+
+// Simple configuration for API URLs
+class ApiConfig {
+  // Default API URL for backend
+  static String defaultApiUrl = 'http://127.0.0.1:8000/api/weather-data/';
+  
+  // Get appropriate URL based on platform
+  static String getApiUrl() {
+    // Ensure URL ends with trailing slash
+    if (!defaultApiUrl.endsWith('/')) {
+      return defaultApiUrl + '/';
+    }
+    return defaultApiUrl;
+  }
+}
+
+void main() {
+  runApp(const MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: PredictionsPage(),
+  ));
+}
+
+class PredictionsPage extends StatefulWidget {
+  const PredictionsPage({super.key});
+
+  @override
+  _PredictionsPageState createState() => _PredictionsPageState();
+}
+
+class _PredictionsPageState extends State<PredictionsPage> {
+  // Separate states for filtering
+  String selectedTimeFramePredictions = "12 months";
+  String selectedTimeFrameWaterLevel = "12 months";
+  String selectedTimeFrameLineChart = "12 months";
+  String selectedFactor = "Infrastructure Stress"; // Default selected factor
+
+  final List<String> timeFrames = ["12 months", "30 days", "7 days", "24 hours"];
+  final List<String> factors = [
+    'Infrastructure Stress',
+    'Snowmelt and Ice Thaw',
+    'Soil Moisture Content',
+    'River Water Levels',
+    'Rainfall Intensity',
+  ];
+
+  /// Generate time labels dynamically based on selected time frame
+  List<String> generateDates(String selectedTimeFrame) {
+    DateTime now = DateTime.now();
+    List<String> dates = [];
+    int range = 12;
+    if (selectedTimeFrame == "30 days") {
+      range = 30;
+    } else if (selectedTimeFrame == "7 days") {
+      range = 7;
+    } else if (selectedTimeFrame == "24 hours") {
+      range = 24;
+    }
+
+    for (int i = 0; i < range; i++) {
+      dates.add(DateFormat(
+              selectedTimeFrame == "12 months"
+                  ? 'MMM'
+                  : selectedTimeFrame == "24 hours"
+                      ? 'HH:mm'
+                      : 'MMM d')
+          .format(now.add(Duration(
+              days: selectedTimeFrame == "12 months" ? i * 30 : (selectedTimeFrame == "24 hours" ? 0 : i),
+              hours: selectedTimeFrame == "24 hours" ? i : 0))));
+    }
+    return dates;
+  }
+
+  // API function to fetch real weather data
+  Future<List<Map<String, dynamic>>> fetchWeatherData({String period = '12months'}) async {
+    try {
+      String apiUrl = ApiConfig.getApiUrl();
+      // Add a random cache-busting parameter to force fresh data
+      final uri = Uri.parse(apiUrl).replace(
+        queryParameters: {
+          'period': period,
+          'nocache': DateTime.now().millisecondsSinceEpoch.toString()
+        }
+      );
+      print('Attempting to fetch data from: $uri');
+      
+      final response = await http.get(uri)
+        .timeout(const Duration(seconds: 10)); // Increased timeout
+      
+      if (response.statusCode == 200) {
+        print('API responded with status code: ${response.statusCode}');
+        final List<dynamic> data = json.decode(response.body);
+        
+        if (data.isNotEmpty) {
+          print('Successfully parsed ${data.length} items from API');
+          // Convert API data to the expected format
+          final formattedData = List<Map<String, dynamic>>.from(data);
+          
+          // Print a sample of the data for debugging
+          if (formattedData.isNotEmpty) {
+            print('Sample API data item: ${formattedData[0]}');
+          }
+          
+          return formattedData;
+        } else {
+          print('API returned empty data array');
+          return _generateFallbackData(period);
+        }
+      } else {
+        print('API responded with error status code: ${response.statusCode}');
+        return _generateFallbackData(period);
+      }
+    } catch (e) {
+      print('Error fetching data: $e');
+      return _generateFallbackData(period);
+    }
+  }
+
+  // Fallback method to generate mock data if API call fails
+  List<Map<String, dynamic>> _generateFallbackData(String period) {
+    print('Generating fallback data for period: $period');
+    final List<Map<String, dynamic>> data = [];
+    
+    // Using current date as the reference point
+    final now = DateTime.now();
+    final dateFormat = DateFormat('MMM d');
+    final monthFormat = DateFormat('MMM');
+    
+    // Generate data based on the requested period
+    if (period == '12months') {
+      // Generate monthly data for the past 12 months
+      for (int i = 11; i >= 0; i--) {
+        // Correctly calculate the month by moving backward from current date
+        final date = DateTime(now.year - (now.month <= i ? 1 : 0), 
+                              now.month <= i ? 12 - (i - now.month) : now.month - i, 1);
+        final month = date.month;
+        
+        // Calculate risk value dynamically based on month
+        // This creates a sinusoidal pattern throughout the year
+        // April-May highest, November-December lowest
+        double monthRisk = 7.0 + 3.0 * sin((month - 1) * 30 * pi / 180);
+        
+        // Log for debugging
+        print('12months period: i=$i, date=$date, month=$month, risk=$monthRisk');
+        
+        data.add({
+          'date': monthFormat.format(date),
+          'flood_risk_month': monthRisk,
+        });
+      }
+    } else if (period == '30days') {
+      // Generate daily data for the past 30 days
+      for (int i = 29; i >= 0; i--) {
+        final date = now.subtract(Duration(days: i));
+        final month = date.month;
+        final day = date.day;
+        
+        // Base risk varies by month in a sinusoidal pattern
+        double baseRisk = 7.0 + 2.5 * sin((month - 1) * 30 * pi / 180);
+        // Add daily variation based on day of month
+        final dailyVariation = (day % 10) * 0.05;
+        
+        data.add({
+          'date': dateFormat.format(date),
+          'flood_risk': baseRisk + dailyVariation,
+        });
+      }
+    } else if (period == '7days') {
+      // Generate daily data for the past 7 days
+      for (int i = 6; i >= 0; i--) {
+        final date = now.subtract(Duration(days: i));
+        final month = date.month;
+        final day = date.day;
+        
+        // Base risk varies by month in a sinusoidal pattern
+        double baseRisk = 7.0 + 2.5 * sin((month - 1) * 30 * pi / 180);
+        // Add daily variation based on day of month
+        final dailyVariation = (day % 5) * 0.08;
+        
+        data.add({
+          'date': dateFormat.format(date),
+          'flood_risk': baseRisk + dailyVariation,
+        });
+      }
+    }
+    
+    print("Generated fallback data for $period: ${data.map((item) => 
+      period == "12months" ? 
+        "${item['date']}: ${item['flood_risk_month']}" : 
+        "${item['date']}: ${item['flood_risk']}").toList()}");
+    
+    return data;
+  }
+
+  void _setTimeFramePredictions(String timeFrame) {
+    setState(() {
+      selectedTimeFramePredictions = timeFrame;
+    });
+  }
+
+  void _setTimeFrameWaterLevel(String timeFrame) {
+    setState(() {
+      selectedTimeFrameWaterLevel = timeFrame;
+    });
+  }
+
+  void _setTimeFrameLineChart(String timeFrame) {
+    setState(() {
+      selectedTimeFrameLineChart = timeFrame;
+    });
+  }
+
+  void _setFactor(String factor) {
+    setState(() {
+      selectedFactor = factor;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Force refresh data when app starts
+    // Use a small delay to allow the UI to build first
+    Future.delayed(const Duration(milliseconds: 100), () {
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0B1D26),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const CustomHeader(),
+
+            const SectionTitle("Predictions And Statistics"),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Container(
+                height: 0.6,
+                width: double.infinity,
+                color: Colors.white,
+              ),
+            ),
+
+            // Predictions Section
+            _buildHeader(
+              "Flood Risk Trends by Time Frame and Category",
+              () => _buildTimeFrameSelector(selectedTimeFramePredictions, _setTimeFramePredictions),
+              _buildFactorSelector(),
+            ),
+            PredictionsAndStatisticsSection(
+              timeFrame: selectedTimeFramePredictions,
+              timeLabels: generateDates(selectedTimeFramePredictions),
+              selectedFactor: selectedFactor,
+            ),
+
+            const SizedBox(height: 30),
+
+            // Water Level Section
+            _buildHeader(
+              "Water Level Volatility in Major Rivers",
+              () => _buildTimeFrameSelector(selectedTimeFrameWaterLevel, _setTimeFrameWaterLevel),
+              null,
+            ),
+            WaterLevelVolatilityChart(
+              timeFrame: selectedTimeFrameWaterLevel, 
+              timeLabels: generateDates(selectedTimeFrameWaterLevel),
+            ),
+
+            const SizedBox(height: 30),
+
+            // Flood Risk Line Chart Section
+            _buildHeader(
+              "Flood Risk Progression Over Time",
+              () => _buildTimeFrameSelector(selectedTimeFrameLineChart, _setTimeFrameLineChart),
+              null,
+            ),
+            FloodRiskLineChart(
+              timeFrame: selectedTimeFrameLineChart, 
+              timeLabels: generateDates(selectedTimeFrameLineChart),
+            ),
+
+            const SizedBox(height: 30),
+
+            // Weather Data Table Section
+            _buildHeader(
+              "Weather Data Analysis",
+              null,
+              null,
+            ),
+            WeatherDataTableSection(
+              fetchData: fetchWeatherData,
+            ),
+
+            const SizedBox(height: 40),
+            const FooterSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(String title, Widget Function()? timeFrameSelector, Widget? factorSelector) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              factorSelector ?? Container(), // Factor selector appears only for Predictions
+              timeFrameSelector != null ? timeFrameSelector() : Container(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFactorSelector() {
+    return Row(
+      children: [
+        const Text(
+          "Select Factor:",
+          style: TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        const SizedBox(width: 10),
+        DropdownButton<String>(
+          value: selectedFactor,
+          dropdownColor: const Color(0xFF0B1D26),
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+          items: factors.map((String factor) {
+            return DropdownMenuItem<String>(
+              value: factor,
+              child: Text(
+                factor,
+                style: const TextStyle(color: Colors.white),
+              ),
+            );
+          }).toList(),
+          onChanged: (String? newFactor) {
+            if (newFactor != null) {
+              _setFactor(newFactor);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeFrameSelector(String selectedTimeFrame, Function(String) setTimeFrame) {
+    return Wrap(
+      spacing: 8,
+      children: timeFrames.map((timeFrame) {
+        return ChoiceChip(
+          label: Text(
+            timeFrame,
+            style: TextStyle(
+              color: selectedTimeFrame == timeFrame ? Colors.black : Colors.white,
+            ),
+          ),
+          selected: selectedTimeFrame == timeFrame,
+          selectedColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(color: Colors.white70),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          onSelected: (bool selected) {
+            if (selected) {
+              setTimeFrame(timeFrame);
+            }
+          },
+        );
+      }).toList(),
+    );
+  }
+}
+
+class WaterLevelVolatilityChart extends StatelessWidget {
+  final String timeFrame;
+  final List<String> timeLabels;
+
+  const WaterLevelVolatilityChart({
+    super.key,
+    required this.timeFrame,
+    required this.timeLabels,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: AspectRatio(
+        aspectRatio: 2.5,
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceBetween,
+            barTouchData: BarTouchData(enabled: false),
+            titlesData: FlTitlesData(
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    int index = value.toInt();
+                    if (index >= 0 && index < timeLabels.length) {
+                      return Text(timeLabels[index], style: const TextStyle(color: Colors.white, fontSize: 10));
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 30,
+                ),
+              ),
+            ),
+            gridData: FlGridData(show: true),
+            borderData: FlBorderData(show: false),
+            barGroups: _buildBarGroups(timeLabels.length),
+            maxY: 3.0,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<BarChartGroupData> _buildBarGroups(int count) {
+    return List.generate(
+      count,
+      (index) => BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            fromY: 0,
+            toY: (index % 3) + 1.0,
+            color: Colors.blueAccent,
+            width: 6, // **Smaller box width**
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PredictionsAndStatisticsSection extends StatelessWidget {
+  final String timeFrame;
+  final List<String> timeLabels;
+  final String selectedFactor;
+
+  const PredictionsAndStatisticsSection({
+    super.key,
+    required this.timeFrame,
+    required this.timeLabels,
+    required this.selectedFactor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: AspectRatio(
+        aspectRatio: 2.5,
+        child: BarChart(
+          BarChartData(
+            alignment: BarChartAlignment.spaceBetween,
+            barTouchData: BarTouchData(enabled: false),
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    return value.toInt() == 0
+                        ? Text(
+                            selectedFactor, // Show only selected factor
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.left,
+                          )
+                        : const SizedBox.shrink();
+                  },
+                  reservedSize: 140,
+                  interval: 1,
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    int index = value.toInt();
+                    if (index >= 0 && index < timeLabels.length) {
+                      return Text(timeLabels[index], style: const TextStyle(color: Colors.white, fontSize: 10));
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 30,
+                ),
+              ),
+            ),
+            gridData: FlGridData(show: true),
+            borderData: FlBorderData(show: false),
+            barGroups: _buildBarGroups(timeLabels.length),
+            maxY: 10.0,
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<BarChartGroupData> _buildBarGroups(int count) {
+    return List.generate(
+      count,
+      (index) => BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            fromY: 0,
+            toY: 1,
+            color: Colors.amberAccent,
+            width: 18,
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FloodRiskLineChart extends StatefulWidget {
+  final String timeFrame;
+  final List<String> timeLabels;
+
+  const FloodRiskLineChart({
+    super.key,
+    required this.timeFrame,
+    required this.timeLabels,
+  });
+
+  @override
+  State<FloodRiskLineChart> createState() => _FloodRiskLineChartState();
+}
+
+class _FloodRiskLineChartState extends State<FloodRiskLineChart> {
+  List<FlSpot> spots = [];
+
+  @override
+  void initState() {
+    super.initState();
+    spots = List.generate(widget.timeLabels.length, (index) => FlSpot(index.toDouble(), (index % 6) * 10.0));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16.0),
+      child: AspectRatio(
+        aspectRatio: 2.5,
+        child: LineChart(
+          LineChartData(
+            gridData: FlGridData(show: true),
+            borderData: FlBorderData(show: false),
+            titlesData: FlTitlesData(
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  getTitlesWidget: (double value, TitleMeta meta) {
+                    int index = value.toInt();
+                    if (index >= 0 && index < widget.timeLabels.length) {
+                      return Text(widget.timeLabels[index], style: const TextStyle(color: Colors.white, fontSize: 10));
+                    }
+                    return const SizedBox.shrink();
+                  },
+                  reservedSize: 30,
+                ),
+              ),
+            ),
+            lineBarsData: [
+              LineChartBarData(
+                spots: spots,
+                isCurved: true,
+                color: Colors.blueAccent,
+                barWidth: 2,
+              ),
+              LineChartBarData(
+                spots: List.generate(widget.timeLabels.length, (index) => FlSpot(index.toDouble(), ((index + 3) % 6) * 10.0)),
+                isCurved: true,
+                color: Colors.amber,
+                barWidth: 2,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SectionTitle extends StatelessWidget {
+  final String title;
+  const SectionTitle(this.title, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(  
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+            Container(
+                        width: 50,
+                        height: 2,
+                        color: const Color(0xFFFBD784),
+                      ),
+                      const SizedBox(width: 8),
+          const Text(
+            "OVERVIEW OF DATA BY REGION AND RISK LEVEL",
+            style: TextStyle(
+              color: Color(0xFFFBD784), 
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
+          ),
+            ]
+          ),
+          const SizedBox(height: 4), 
+
+          // Main Title
+          Text(
+            title,  
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 36,  
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Serif',  
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+
+
+class FooterSection extends StatelessWidget {
+  const FooterSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: const Color(0xFF0B1D26),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Flood prediction and Early warning platform",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            "Important information for preparedness",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class WeatherDataTableSection extends StatefulWidget {
+  final Future<List<Map<String, dynamic>>> Function({String period}) fetchData;
+
+  const WeatherDataTableSection({
+    super.key,
+    required this.fetchData,
+  });
+
+  @override
+  State<WeatherDataTableSection> createState() => _WeatherDataTableSectionState();
+}
+
+class TimeRangeFilter extends StatelessWidget {
+  final List<String> timeframes;
+  final String selectedTimeframe;
+  final Function(String) onTimeframeChanged;
+
+  const TimeRangeFilter({
+    Key? key,
+    required this.timeframes,
+    required this.selectedTimeframe,
+    required this.onTimeframeChanged,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      children: timeframes.map((timeframe) {
+        return ChoiceChip(
+          label: Text(
+            timeframe,
+            style: TextStyle(
+              color: selectedTimeframe == timeframe ? Colors.black : Colors.white,
+            ),
+          ),
+          selected: selectedTimeframe == timeframe,
+          selectedColor: Colors.white,
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: Colors.white70),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          onSelected: (bool selected) {
+            if (selected) {
+              onTimeframeChanged(timeframe);
+            }
+          },
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _WeatherDataTableSectionState extends State<WeatherDataTableSection> {
+  String _selectedTimeframe = "12 months";
+  List<Map<String, dynamic>> _data = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  Future<void> _loadData() async {
+    print('Loading data for timeframe: $_selectedTimeframe');
+    
+    // Show loading indicator
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+    
+    try {
+      // Convert UI timeframe to API parameter
+      String apiPeriod;
+      switch (_selectedTimeframe) {
+        case "12 months": apiPeriod = '12months'; break;
+        case "30 days": apiPeriod = '30days'; break;
+        case "7 days": apiPeriod = '7days'; break;
+        default: apiPeriod = '12months';
+      }
+      
+      // Try to fetch data from API
+      final fetchedData = await widget.fetchData(period: apiPeriod);
+      
+      // Check if we got valid data
+      if (fetchedData.isNotEmpty) {
+        // Log the data to help with debugging
+        print('Fetched data: ${fetchedData.map((e) => e.keys.toList()).toList().first}');
+        
+        // Check if the expected field is present
+        final expectedField = _selectedTimeframe == "12 months" 
+            ? 'flood_risk_month' 
+            : 'flood_risk';
+            
+        if (fetchedData.isNotEmpty && 
+            (fetchedData.first.containsKey(expectedField) || 
+             fetchedData.first.keys.any((k) => k.contains('flood')))) {
+          setState(() {
+            _data = fetchedData;
+            _isLoading = false;
+          });
+          return;
+        } else {
+          print('Warning: API returned data without expected field "$expectedField"');
+          // Continue to fallback
+        }
+      }
+      
+      // If we get here, use fallback/test data
+      setState(() {
+        _data = _generateTestData(_selectedTimeframe);
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching data: $e');
+      setState(() {
+        _data = _generateTestData(_selectedTimeframe);
+        _isLoading = false;
+        _errorMessage = 'Failed to load data: $e';
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _generateTestData(String timeframe) {
+    final List<Map<String, dynamic>> data = [];
+    
+    // Using current date as the reference point
+    final now = DateTime.now(); // Use actual current date
+    final dateFormat = DateFormat('MMM d');
+    final monthFormat = DateFormat('MMMM'); // Use full month name instead of abbreviated
+    
+    if (timeframe == "12 months") {
+      // Generate data for 12 months starting from current month
+      for (int i = 0; i < 12; i++) {
+        // Calculate month by moving forward from current date
+        final date = DateTime(now.year + ((now.month + i) > 12 ? 1 : 0), 
+                             ((now.month + i - 1) % 12) + 1, 1);
+        
+        // Calculate risk value with seasonal patterns
+        // Higher in spring (months 3-5), lower in winter (months 11-1)
+        int month = date.month;
+        double seasonalFactor = 5.0 * sin(((month + 9) % 12) * (pi / 6));
+        double floodRisk = 15.0 + seasonalFactor;
+        
+        // Add some random variation (±3%)
+        floodRisk += (Random().nextDouble() * 6.0) - 3.0;
+        
+        // Ensure risk stays within reasonable bounds (5-25%)
+        floodRisk = floodRisk.clamp(5.0, 25.0);
+        
+        data.add({
+          'date': monthFormat.format(date),
+          'flood_risk_month': floodRisk,
+        });
+      }
+    } else if (timeframe == "30 days") {
+      // Generate data for next 30 days from today
+      for (int i = 0; i < 30; i++) {
+        final date = now.add(Duration(days: i));
+        
+        // Calculate base risk with seasonal patterns
+        int month = date.month;
+        double seasonalFactor = 5.0 * sin(((month + 9) % 12) * (pi / 6));
+        double baseRisk = 15.0 + seasonalFactor;
+        
+        // Add some daily variation based on day of month and weekday
+        double dailyVariation = (date.day % 5) * 0.4;
+        dailyVariation += (date.weekday % 3) * 0.3;
+        
+        // Rainfall pattern - more risk on certain days (simulating weather patterns)
+        if (date.day % 7 == 0 || date.day % 11 == 0) {
+          dailyVariation += 2.0;
+        }
+        
+        double floodRisk = baseRisk + dailyVariation;
+        floodRisk = floodRisk.clamp(5.0, 25.0);
+        
+        data.add({
+          'date': dateFormat.format(date),
+          'flood_risk': floodRisk,
+        });
+      }
+    } else {
+      // Generate data for next 7 days from today
+      for (int i = 0; i < 7; i++) {
+        final date = now.add(Duration(days: i));
+        
+        // Calculate base risk with seasonal patterns
+        int month = date.month;
+        double seasonalFactor = 5.0 * sin(((month + 9) % 12) * (pi / 6));
+        double baseRisk = 15.0 + seasonalFactor;
+        
+        // Add more detailed daily variation for 7-day view
+        double dailyVariation = 0.0;
+        
+        // Weather pattern simulation - weekends might have different patterns
+        if (date.weekday >= 6) { // Weekend
+          dailyVariation += 1.5;
+        }
+        
+        // Simulated weather events
+        if (i == 2 || i == 5) {
+          dailyVariation += 2.5; // Simulated rainfall events
+        }
+        
+        double floodRisk = baseRisk + dailyVariation;
+        floodRisk = floodRisk.clamp(5.0, 25.0);
+        
+        data.add({
+          'date': dateFormat.format(date),
+          'flood_risk': floodRisk,
+        });
+      }
+    }
+    
+    print("Generated test data for $timeframe: ${data.map((item) => 
+      timeframe == "12 months" ? 
+        "${item['date']}: ${item['flood_risk_month']}" : 
+        "${item['date']}: ${item['flood_risk']}").toList()}");
+    
+    return data;
+  }
+
+  List<FlSpot> _getChartData() {
+    List<FlSpot> spots = [];
+    
+    // No data case
+    if (_data.isEmpty) {
+      return spots;
+    }
+    
+    // Print the data keys to help with debugging
+    print('Data fields: ${_data.first.keys.toList()}');
+    
+    // Expected field name based on timeframe
+    final expectedField = _selectedTimeframe == "12 months" 
+        ? 'flood_risk_month' 
+        : 'flood_risk';
+    
+    // Check if the expected field exists in the data
+    bool hasExpectedField = _data.first.containsKey(expectedField);
+    
+    // If not, find any field containing 'flood'
+    String fieldToUse = expectedField;
+    if (!hasExpectedField) {
+      final alternativeField = _data.first.keys
+          .firstWhere((k) => k.contains('flood'), orElse: () => '');
+      
+      if (alternativeField.isNotEmpty) {
+        print('Using alternative field: $alternativeField instead of $expectedField');
+        fieldToUse = alternativeField;
+        hasExpectedField = true;
+      } else {
+        print('No suitable field found in data');
+      }
+    }
+    
+    // Extract data points
+    for (int i = 0; i < _data.length; i++) {
+      double riskValue = 0.0;
+      final item = _data[i];
+      
+      // Try to get the risk value from the determined field
+      if (hasExpectedField && item.containsKey(fieldToUse)) {
+        var value = item[fieldToUse];
+        if (value is num) {
+          riskValue = value.toDouble();
+        } else if (value is String) {
+          riskValue = double.tryParse(value) ?? 0.0;
+        }
+      } 
+      // Try other known field names as fallback
+      else if (item.containsKey('risk_percentage')) {
+        var value = item['risk_percentage'];
+        if (value is num) {
+          riskValue = value.toDouble();
+        } else if (value is String) {
+          riskValue = double.tryParse(value) ?? 0.0;
+        }
+      }
+      // Try a very generic fallback for any numeric field with 'risk' in the name
+      else {
+        final riskField = item.keys
+            .firstWhere((k) => k.contains('risk') && item[k] is num, 
+                       orElse: () => '');
+        
+        if (riskField.isNotEmpty) {
+          riskValue = (item[riskField] as num).toDouble();
+        }
+      }
+      
+      // Add the data point
+      spots.add(FlSpot(i.toDouble(), riskValue));
+    }
+    
+    // Print the final data points for debugging
+    print('Generated ${spots.length} chart data points');
+    return spots;
+  }
+
+  List<String> _getDateLabels() {
+    // Extract date labels
+    List<String> labels = [];
+    for (var item in _data) {
+      String label = '';
+      if (item.containsKey('date')) {
+        label = item['date'].toString();
+      } else {
+        // Fallback label
+        label = 'Item ${labels.length + 1}';
+      }
+      labels.add(label);
+    }
+    return labels;
+  }
+
+  double _getMaxYValue() {
+    // Return a fixed value for Y-axis scale
+    return 100.0; // Changed to 100.0 to show full percentage range (0-100%)
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+    
+    // Set up a timer to refresh data daily
+    Timer.periodic(const Duration(hours: 24), (timer) {
+      if (mounted) {
+        _loadData();
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: TimeRangeFilter(
+              timeframes: const ["12 months", "30 days", "7 days"],
+              selectedTimeframe: _selectedTimeframe,
+              onTimeframeChanged: (String timeframe) {
+                setState(() {
+                  _selectedTimeframe = timeframe;
+                });
+                _loadData();
+              },
+            ),
+          ),
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(
+                color: Colors.white,
+              ),
+            )
+          else if (_errorMessage.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "API Connection Error",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  if (kIsWeb)
+                    const Text(
+                      "Note: When running in a web browser, the API needs to support CORS and be accessible from your browser's origin.",
+                      style: TextStyle(
+                        fontStyle: FontStyle.italic,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: _loadData,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                    ),
+                    child: const Text("Retry"),
+                  ),
+                ],
+              ),
+            )
+          else if (_data.isEmpty)
+            const Center(
+              child: Text(
+                "No data available",
+                style: TextStyle(color: Colors.white),
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Flood Risk Forecast",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  "Statistical graph showing risk percentage over time",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 300,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.3),
+                        Colors.black.withOpacity(0.1),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 16, top: 24, left: 8, bottom: 8),
+                    child: LineChart(
+                      LineChartData(
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: true,
+                          horizontalInterval: 5, // Show grid lines every 5%
+                          verticalInterval: 1,    // Show vertical grid for each data point
+                          getDrawingHorizontalLine: (value) {
+                            return FlLine(
+                              color: Colors.white10,
+                              strokeWidth: 1,
+                            );
+                          },
+                          getDrawingVerticalLine: (value) {
+                            return FlLine(
+                              color: Colors.white10,
+                              strokeWidth: 1,
+                              dashArray: [5, 5], // Dashed vertical lines
+                            );
+                          },
+                        ),
+                        titlesData: FlTitlesData(
+                          show: true,
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 40,
+                              interval: _selectedTimeframe == "12 months" ? 1 : 
+                                      (_selectedTimeframe == "30 days" ? 5 : 1),
+                              getTitlesWidget: (value, meta) {
+                                if (value.toInt() >= 0 &&
+                                    value.toInt() < _getDateLabels().length) {
+                                  
+                                  // Only show selected labels based on timeframe
+                                  bool showLabel = true;
+                                  if (_selectedTimeframe == "30 days") {
+                                    showLabel = value.toInt() % 5 == 0 || value.toInt() == _getDateLabels().length - 1;
+                                  }
+                                  
+                                  if (!showLabel && _selectedTimeframe != "7 days" && _selectedTimeframe != "12 months") {
+                                    return const SizedBox.shrink();
+                                  }
+                                  
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 10.0),
+                                    child: Transform.rotate(
+                                      angle: _selectedTimeframe == "12 months" ? 0 : 0.3,
+                                      child: Text(
+                                        _getDateLabels()[value.toInt()],
+                                        style: TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: _selectedTimeframe == "12 months" ? 12 : 10,
+                                          fontWeight: _selectedTimeframe == "12 months" ? 
+                                                    FontWeight.bold : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              interval: 5,
+                              getTitlesWidget: (value, meta) {
+                                if (value % 5 == 0) {
+                                  String text = '${value.toInt()}%';
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: Text(
+                                      text,
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                        fontWeight: value == 0 ? FontWeight.normal : FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                              reservedSize: 36,
+                            ),
+                          ),
+                          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        borderData: FlBorderData(
+                          show: true,
+                          border: Border.all(color: Colors.white24),
+                        ),
+                        minX: 0,
+                        maxX: (_data.length - 1).toDouble(),
+                        minY: 0,
+                        maxY: _getMaxYValue(),
+                        lineTouchData: LineTouchData(
+                          enabled: true,
+                          touchTooltipData: LineTouchTooltipData(
+                            getTooltipColor: (spot) => Colors.black.withOpacity(0.8),
+                            tooltipRoundedRadius: 8,
+                            getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                              return touchedSpots.map((spot) {
+                                final dateLabel = _getDateLabels()[spot.x.toInt()];
+                                String valueDescription = _selectedTimeframe == "12 months" ? 
+                                    "Monthly Risk" : _selectedTimeframe == "30 days" ? "Daily Risk" : "Daily Risk";
+                                
+                                return LineTooltipItem(
+                                  '$dateLabel\n$valueDescription: ${spot.y.toStringAsFixed(1)}%',
+                                  const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                );
+                              }).toList();
+                            },
+                          ),
+                          touchCallback: (FlTouchEvent event, LineTouchResponse? touchResponse) {},
+                          handleBuiltInTouches: true,
+                        ),
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: _getChartData(),
+                            isCurved: true,
+                            color: Colors.amber,
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFFFC107),  // Amber
+                                Color(0xFFFF9800),  // Orange
+                              ],
+                            ),
+                            barWidth: 4,
+                            isStrokeCapRound: true,
+                            dotData: FlDotData(
+                              show: true,
+                              getDotPainter: (spot, percent, barData, index) {
+                                return FlDotCirclePainter(
+                                  radius: 5,
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                  strokeColor: Colors.amber,
+                                );
+                              },
+                              checkToShowDot: (spot, barData) {
+                                // For 30 days, only show dots every 5 days to avoid clutter
+                                if (_selectedTimeframe == "30 days") {
+                                  return spot.x.toInt() % 5 == 0 || spot.x.toInt() == _data.length - 1;
+                                }
+                                return true;
+                              },
+                            ),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.amber.withOpacity(0.3),
+                                  Colors.amber.withOpacity(0.0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Add a button to refresh the data for testing
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _loadData();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.refresh, size: 18),
+                        SizedBox(width: 8),
+                        Text("Refresh Data"),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        )
+      );
+  }
+}
