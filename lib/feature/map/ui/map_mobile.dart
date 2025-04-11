@@ -7,6 +7,8 @@ import 'package:project_app/feature/profile/ui/profile_mobile.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'dart:io' show Platform;
+
 
 void main() {
   runApp(const MapPageApp());
@@ -102,24 +104,27 @@ class _MapPageState extends State<MapPage> {
    Future<void> _updateMarkers() async {
     Set<Marker> newMarkers = {};
     Set<Circle> newCircles = {};
-    final Map<String, String> cityApiUrls = {
-      'Astana': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=astana',
-      'Almaty': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=almaty',
-      'Atyrau': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=atyrau',
-      'Aktau': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=aktau',
-      'Aktobe': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=aktobe',
-      'Karaganda': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=karaganda',
-      'Kokshetau': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=kokshetau',
-      'Kostanay': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=kostanay',
-      'Kyzylorda': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=kyzylorda',
-      'Pavlodar': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=pavlodar',
-      'Semipalatinsk': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=semipalatinsk',
-      'Shymkent': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=shymkent',
-      'Taldykorgan': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=taldykorgan',
-      'Taraz': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=taraz',
-      'Ural': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=ural',
-      'Uskemen': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=uskemen',
-      'Zhezkazgan': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=zhezkazgan',
+    final String baseUrl = Platform.isAndroid 
+        ? 'http://10.0.2.2:8000/api/weather-data/by-city/?city='
+        : 'http://localhost:8000/api/weather-data/by-city/?city=';
+     final Map<String, String> cityApiUrls = {
+      'Astana': '${baseUrl}astana',
+      'Almaty': '${baseUrl}almaty',
+      'Atyrau': '${baseUrl}atyrau',
+      'Aktau': '${baseUrl}aktau',
+      'Aktobe': '${baseUrl}aktobe',
+      'Karaganda': '${baseUrl}karaganda',
+      'Kokshetau': '${baseUrl}kokshetau',
+      'Kostanay': '${baseUrl}kostanay',
+      'Kyzylorda': '${baseUrl}kyzylorda',
+      'Pavlodar': '${baseUrl}pavlodar',
+      'Semipalatinsk': '${baseUrl}semipalatinsk',
+      'Shymkent': '${baseUrl}shymkent',
+      'Taldykorgan': '${baseUrl}taldykorgan',
+      'Taraz': '${baseUrl}taraz',
+      'Ural': '${baseUrl}ural',
+      'Uskemen': '${baseUrl}uskemen',
+      'Zhezkazgan': '${baseUrl}zhezkazgan',
     };
 
     for (var entry in cityApiUrls.entries) {

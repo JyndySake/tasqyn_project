@@ -46,9 +46,14 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>io.flutter.embedded_views_preview</key>
-<true/>
-<key>GMSApiKey</key>
-<string>AIzaSyCzMV9o0bTqIU9Yt7BS7RQIN1pwEi7hCVs</string>
-
+	<true/>
+	<key>GMSApiKey</key>
+	<string>AIzaSyCzMV9o0bTqIU9Yt7BS7RQIN1pwEi7hCVs</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to location when open to show your position on the map.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs access to location when in the background to keep track of your position.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to location when open and in the background.</string>
 </dict>
 </plist>

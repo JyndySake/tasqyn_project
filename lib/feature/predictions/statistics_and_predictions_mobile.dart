@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
+import 'dart:io' show Platform;
+
 
 void main() {
   runApp(const FloodPredictionApp());
@@ -30,9 +32,10 @@ class StatisticsPage extends StatelessWidget {
   const StatisticsPage({super.key});
 
   Future<List<Map<String, dynamic>>> fetchWeatherData({String period = '12months', String city = 'almaty'}) async {
-    try {
+     try {
+      final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/weather-data/by-city/?city=$city'),
+        Uri.parse('http://$host:8000/api/weather-data/by-city/?city=$city'),
      );
 
       if (response.statusCode == 200) {
@@ -53,7 +56,8 @@ class StatisticsPage extends StatelessWidget {
   
    Future<List<Map<String, dynamic>>> generateForecastData(String period, String city) async {
   final now = DateTime.now();
-  final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/weather-data/by-city/?city=$city'));
+   final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+  final response = await http.get(Uri.parse('http://$host:8000/api/weather-data/by-city/?city=$city'));
   if (response.statusCode == 200) {
     final List<dynamic> jsonData = json.decode(response.body);
     
@@ -542,7 +546,8 @@ class _BarChartWidgetState extends State<BarChartWidget> {
 
   Future<List<BarChartGroupData>> _fetchData() async {
     try {
-      final url = 'http://10.0.2.2:8000/api/weather-data/by-city/?city=${widget.selectedCity.toLowerCase()}';
+      final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+      final url = 'http://$host:8000/api/weather-data/by-city/?city=${widget.selectedCity.toLowerCase()}';
       print('Fetching from URL: $url');
       
       final response = await http.get(Uri.parse(url));
@@ -1016,29 +1021,31 @@ class _WeatherDataTableSectionState extends State<WeatherDataTableSection> {
   List<Map<String, dynamic>> _data = [];
   bool _isLoading = true;
 
-  final Map<String, String> _cities = {
-    'Astana': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=astana',
-    'Almaty': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=almaty',
-    'Atyrau': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=atyrau',
-    'Aktau': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=aktau',
-    'Aktobe': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=aktobe',
-    'Karaganda': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=karaganda',
-    'Kokshetau': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=kokshetau',
-    'Kostanay': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=kostanay',
-    'Kyzylorda': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=kyzylorda',
-    'Pavlodar': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=pavlodar',
-    'Semipalatinsk': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=semipalatinsk',
-    'Shymkent': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=shymkent',
-    'Taldykorgan': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=taldykorgan',
-    'Taraz': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=taraz',
-    'Ural': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=ural',
-    'Uskemen': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=uskemen',
-    'Zhezkazgan': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=zhezkazgan',
-  };
+  late final Map<String, String> _cities;
 
   @override
   void initState() {
     super.initState();
+    final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+    _cities = {
+      'Astana': 'http://$host:8000/api/weather-data/by-city/?city=astana',
+      'Almaty': 'http://$host:8000/api/weather-data/by-city/?city=almaty',
+      'Atyrau': 'http://$host:8000/api/weather-data/by-city/?city=atyrau',
+      'Aktau': 'http://$host:8000/api/weather-data/by-city/?city=aktau',
+      'Aktobe': 'http://$host:8000/api/weather-data/by-city/?city=aktobe',
+      'Karaganda': 'http://$host:8000/api/weather-data/by-city/?city=karaganda',
+      'Kokshetau': 'http://$host:8000/api/weather-data/by-city/?city=kokshetau',
+      'Kostanay': 'http://$host:8000/api/weather-data/by-city/?city=kostanay',
+      'Kyzylorda': 'http://$host:8000/api/weather-data/by-city/?city=kyzylorda',
+      'Pavlodar': 'http://$host:8000/api/weather-data/by-city/?city=pavlodar',
+      'Semipalatinsk': 'http://$host:8000/api/weather-data/by-city/?city=semipalatinsk',
+      'Shymkent': 'http://$host:8000/api/weather-data/by-city/?city=shymkent',
+      'Taldykorgan': 'http://$host:8000/api/weather-data/by-city/?city=taldykorgan',
+      'Taraz': 'http://$host:8000/api/weather-data/by-city/?city=taraz',
+      'Ural': 'http://$host:8000/api/weather-data/by-city/?city=ural',
+      'Uskemen': 'http://$host:8000/api/weather-data/by-city/?city=uskemen',
+      'Zhezkazgan': 'http://$host:8000/api/weather-data/by-city/?city=zhezkazgan',
+    };
     _loadData();
   }
 
