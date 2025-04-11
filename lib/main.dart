@@ -6,7 +6,8 @@ import 'package:project_app/feature/onboard/onboard_logo.dart';
 
 void main() {
   runApp(const FloodPredictionApp());
-  
+   WidgetsFlutterBinding.ensureInitialized();
+ 
 }
 
 class FloodPredictionApp extends StatelessWidget {

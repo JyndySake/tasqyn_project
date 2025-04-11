@@ -1,120 +1,286 @@
+import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 
 class PredictionsAndStatisticsSection extends StatefulWidget {
-  const PredictionsAndStatisticsSection({super.key});
+  final String timeFrame;
+  final List<String> timeLabels;
+  final String selectedFactor;
+  final Future<List<Map<String, dynamic>>> Function({required String period}) fetchData;
+
+  const PredictionsAndStatisticsSection({
+    Key? key,
+    required this.timeFrame,
+    required this.timeLabels,
+    required this.selectedFactor,
+    required this.fetchData,
+  }) : super(key: key);
 
   @override
-  _PredictionsAndStatisticsSectionState createState() =>
-      _PredictionsAndStatisticsSectionState();
+  State<PredictionsAndStatisticsSection> createState() => _PredictionsAndStatisticsSectionState();
 }
 
-class _PredictionsAndStatisticsSectionState
-    extends State<PredictionsAndStatisticsSection> {
-  String selectedTimeFrame = "12 months";
-  String selectedFactor = "Infrastructure Stress"; // Default selected factor
+class _PredictionsAndStatisticsSectionState extends State<PredictionsAndStatisticsSection> {
+  List<Map<String, dynamic>> weatherData = [];
+  bool isLoading = true;
+  String selectedCity = 'Astana';
 
-  final List<String> timeFrames = ["12 months", "30 days", "7 days", "24 hours"];
-  final List<String> factors = [
-    'Infrastructure Stress',
-    'Snowmelt and Ice Thaw',
-    'Soil Moisture Content',
-    'River Water Levels',
-    'Rainfall Intensity',
-  ];
+  final Map<String, String> cities = {
+    'Astana': 'http://localhost:8000/api/weather-data/by-city/?city=astana',
+    'Almaty': 'http://localhost:8000/api/weather-data/by-city/?city=almaty',
+    'Atyrau': 'http://localhost:8000/api/weather-data/by-city/?city=atyrau',
+    'Aktau': 'http://localhost:8000/api/weather-data/by-city/?city=aktau',
+    'Aktobe': 'http://localhost:8000/api/weather-data/by-city/?city=aktobe',
+    'Karaganda': 'http://localhost:8000/api/weather-data/by-city/?city=karaganda',
+    'Kokshetau': 'http://localhost:8000/api/weather-data/by-city/?city=kokshetau',
+    'Kostanay': 'http://localhost:8000/api/weather-data/by-city/?city=kostanay',
+    'Kyzylorda': 'http://localhost:8000/api/weather-data/by-city/?city=kyzylorda',
+    'Pavlodar': 'http://localhost:8000/api/weather-data/by-city/?city=pavlodar',
+    'Semipalatinsk': 'http://localhost:8000/api/weather-data/by-city/?city=semipalatinsk',
+    'Shymkent': 'http://localhost:8000/api/weather-data/by-city/?city=shymkent',
+    'Taldykorgan': 'http://localhost:8000/api/weather-data/by-city/?city=taldykorgan',
+    'Taraz': 'http://localhost:8000/api/weather-data/by-city/?city=taraz',
+    'Ural': 'http://localhost:8000/api/weather-data/by-city/?city=ural',
+    'Uskemen': 'http://localhost:8000/api/weather-data/by-city/?city=uskemen',
+    'Zhezkazgan': 'http://localhost:8000/api/weather-data/by-city/?city=zhezkazgan',
+  };
 
-  List<String> generateDates() {
-    DateTime now = DateTime.now();
-    List<String> dates = [];
-    int range = 12;
-    if (selectedTimeFrame == "30 days") {
-      range = 30;
-    } else if (selectedTimeFrame == "7 days") {
-      range = 7;
-    } else if (selectedTimeFrame == "24 hours") {
-      range = 24;
+  @override
+  void initState() {
+    super.initState();
+    fetchWeatherData();
+  }
+
+  @override
+  void didUpdateWidget(PredictionsAndStatisticsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.timeFrame != widget.timeFrame) {
+      fetchWeatherData();
     }
+  }
 
-    for (int i = 0; i < range; i++) {
-      dates.add(DateFormat(
-              selectedTimeFrame == "12 months"
-                  ? 'MMM'
-                  : selectedTimeFrame == "24 hours"
-                      ? 'HH:mm'
-                      : 'MMM d')
-          .format(now.add(Duration(
-              days: selectedTimeFrame == "12 months"
-                  ? i * 30
-                  : (selectedTimeFrame == "24 hours" ? 0 : i),
-              hours: selectedTimeFrame == "24 hours" ? i : 0))));
+  Future<void> fetchWeatherData() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final Uri uri = Uri.parse(cities[selectedCity]!);
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
+        setState(() {
+          weatherData = List<Map<String, dynamic>>.from(jsonData);
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load weather data');
+      }
+    } catch (e) {
+      print('Error fetching weather data: $e');
+      setState(() {
+        isLoading = false;
+      });
     }
-    return dates;
+  }
+
+  List<Map<String, dynamic>> getFilteredData() {
+    final DateTime now = DateTime.now();
+    final DateTime endDate = now.add(Duration(days: widget.timeFrame == "30 days" ? 30 : 7));
+    
+    return weatherData.where((data) {
+      final DateTime date = DateTime.parse(data['timestamp'] ?? data['date']);
+      return date.isAfter(now.subtract(const Duration(days: 1))) && date.isBefore(endDate.add(const Duration(days: 1)));
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    List<String> timeLabels = generateDates();
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final List<Map<String, dynamic>> filteredData = getFilteredData();
+    final List<String> xAxisLabels = filteredData.map((data) => DateFormat('MMM d').format(DateTime.parse(data['timestamp'] ?? data['date']))).toList();
+
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      margin: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.all(20.0),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.blue.withOpacity(0.2),
+            Colors.purple.withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.white.withOpacity(0.1),
+            blurRadius: 10,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          _buildFactorSelector(), // Factor Filter UI
-          const SizedBox(height: 16),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFBD784).withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFBD784).withOpacity(0.2),
+                      blurRadius: 5,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: Text(
+                  widget.selectedFactor,
+                  style: const TextStyle(
+                    color: Color(0xFFFBD784),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              DropdownButton<String>(
+                value: selectedCity,
+                onChanged: (String? newValue) {
+                  setState(() {
+                    selectedCity = newValue!;
+                    fetchWeatherData();
+                  });
+                },
+                items: cities.keys.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                dropdownColor: Colors.blue[900],
+              ),
+              const SizedBox(width: 10),
+              Text(
+                _getUnit(),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           AspectRatio(
             aspectRatio: 2.5,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceBetween,
-                barTouchData: BarTouchData(enabled: false),
+                barTouchData: BarTouchData(
+                  enabled: true,
+                  touchTooltipData: BarTouchTooltipData(
+                    tooltipRoundedRadius: 8,
+                    tooltipMargin: 8,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${_getDataValue(filteredData[groupIndex], groupIndex).toStringAsFixed(1)}${_getUnit()}',
+                        const TextStyle(
+                          color: Color(0xFF0B1D26),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 titlesData: FlTitlesData(
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (double value, TitleMeta meta) {
-                        return value.toInt() == 0
-                            ? Text(
-                                selectedFactor, // Show only once
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                ),
-                                textAlign: TextAlign.left,
-                              )
-                            : const SizedBox.shrink();
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: Text(
+                            value.toInt().toString(),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        );
                       },
-                      reservedSize: 140,
-                      interval: 1,
+                      interval: _getYAxisInterval(),
+                      reservedSize: 40,
                     ),
                   ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (double value, TitleMeta meta) {
-                        if (value.toInt() >= 0 && value.toInt() < timeLabels.length) {
-                          return Text(
-                            timeLabels[value.toInt()],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
+                        int index = value.toInt();
+                        if (index >= 0 && index < xAxisLabels.length) {
+                          return Transform.rotate(
+                            angle: -0.5,
+                            child: SizedBox(
+                              width: 60,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  xAxisLabels[index],
+                                  style: TextStyle(
+                                    color: index == 0 ? const Color(0xFFFBD784) : Colors.white.withOpacity(0.8),
+                                    fontSize: 11,
+                                    fontWeight: index == 0 ? FontWeight.bold : FontWeight.w500,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ),
                           );
                         }
                         return const SizedBox.shrink();
                       },
-                      reservedSize: 30,
+                      reservedSize: 50,
                     ),
                   ),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
-                gridData: FlGridData(show: true),
+                gridData: FlGridData(
+                  show: true,
+                  horizontalInterval: _getYAxisInterval(),
+                  getDrawingHorizontalLine: (value) {
+                    return FlLine(
+                      color: Colors.white.withOpacity(0.2),
+                      strokeWidth: 1,
+                      dashArray: [5, 5],
+                    );
+                  },
+                  drawVerticalLine: false,
+                ),
                 borderData: FlBorderData(show: false),
-                barGroups: _buildBarGroups(timeLabels.length), // Show multiple bars
-                maxY: 10.0,
+                barGroups: _buildBarGroups(filteredData),
+                maxY: _getMaxY(),
+                minY: 0,
               ),
             ),
           ),
@@ -123,108 +289,88 @@ class _PredictionsAndStatisticsSectionState
     );
   }
 
-  /// **Title and Time Frame Selector**
-  Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          "Flood Risk Trends by Time Frame and Category",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        _buildTimeFrameSelector(),
-      ],
-    );
+  double _getDataValue(Map<String, dynamic> dayData, int index) {
+    if (dayData.isEmpty) return 0.0;
+    
+    switch (widget.selectedFactor.toLowerCase()) {
+      case 'humidity':
+        return (dayData['humidity_avg'] ?? 0.0);
+      case 'pressure':
+        return (dayData['pressure_station'] ?? 0.0);
+      case 'soil moisture':
+        return (dayData['soil_temp_avg'] ?? 0.0);
+      case 'cloud cover':
+        return (dayData['cloud_total'] ?? 0.0);
+      default:
+        return 0.0;
+    }
   }
 
-  /// **Factor Selector Dropdown**
-  Widget _buildFactorSelector() {
-    return Row(
-      children: [
-        const Text(
-          "Select Factor:",
-          style: TextStyle(color: Colors.white, fontSize: 14),
-        ),
-        const SizedBox(width: 10),
-        DropdownButton<String>(
-          value: selectedFactor,
-          dropdownColor: const Color(0xFF0B1D26),
-          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-          items: factors.map((String factor) {
-            return DropdownMenuItem<String>(
-              value: factor,
-              child: Text(
-                factor,
-                style: const TextStyle(color: Colors.white),
-              ),
-            );
-          }).toList(),
-          onChanged: (String? newFactor) {
-            if (newFactor != null) {
-              setState(() {
-                selectedFactor = newFactor; // Update selected factor
-              });
-            }
-          },
-        ),
-      ],
-    );
-  }
-
-  /// **Time Frame Selector**
-  Widget _buildTimeFrameSelector() {
-    return Wrap(
-      spacing: 8,
-      children: timeFrames.map((timeFrame) {
-        return ChoiceChip(
-          label: Text(
-            timeFrame,
-            style: TextStyle(
-              color: selectedTimeFrame == timeFrame ? Colors.black : Colors.white,
-              fontWeight: selectedTimeFrame == timeFrame
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-            ),
-          ),
-          selected: selectedTimeFrame == timeFrame,
-          selectedColor: Colors.white,
-          backgroundColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            side: BorderSide(color: Colors.white70),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          onSelected: (bool selected) {
-            if (selected) {
-              setState(() {
-                selectedTimeFrame = timeFrame;
-              });
-            }
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  /// **Generate Multiple Bars for Selected Factor**
-  List<BarChartGroupData> _buildBarGroups(int count) {
+  List<BarChartGroupData> _buildBarGroups(List<Map<String, dynamic>> displayData) {
     return List.generate(
-      count,
+      displayData.length,
       (index) => BarChartGroupData(
         x: index,
         barRods: [
           BarChartRodData(
-            fromY: 0,
-            toY: 1, // Creates multiple bars
-            color: Colors.amberAccent,
-            width: 18,
-            borderRadius: BorderRadius.circular(6),
+            toY: _getDataValue(displayData[index], index),
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFFFBD784),
+                Color(0xFFFF9F43),
+              ],
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+            ),
+            width: 16,
+            borderRadius: BorderRadius.circular(4),
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true,
+              toY: _getMaxY(),
+              color: Colors.white.withOpacity(0.1),
+            ),
           ),
         ],
       ),
     );
+  }
+
+  double _getMaxY() {
+    switch (widget.selectedFactor.toLowerCase()) {
+      case 'pressure':
+        return 1100.0;
+      case 'humidity':
+      case 'temperature':
+      case 'wind speed':
+        return 100.0;
+      default:
+        return 100.0;
+    }
+  }
+
+  double _getYAxisInterval() {
+    switch (widget.selectedFactor.toLowerCase()) {
+      case 'pressure':
+        return 100.0;
+      case 'humidity':
+      case 'temperature':
+      case 'wind speed':
+        return 20.0;
+      default:
+        return 20.0;
+    }
+  }
+
+  String _getUnit() {
+    switch (widget.selectedFactor.toLowerCase()) {
+      case 'pressure':
+        return 'hPa';
+      case 'humidity':
+      case 'temperature':
+      case 'wind speed':
+        return '%';
+      default:
+        return '';
+    }
   }
 }

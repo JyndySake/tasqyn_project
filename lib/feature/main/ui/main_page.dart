@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'dart:convert';
 import 'package:project_app/feature/main/widgets/custom_header.dart';
 import 'package:project_app/feature/main/sections/header_section.dart';
 import 'package:project_app/feature/main/sections/predictions_and_statistics_section.dart';
 import 'package:project_app/feature/main/sections/news_and_forecasts_section.dart';
 import 'package:project_app/feature/main/sections/flood_risk_map_section.dart';
+import 'package:http/http.dart' as http;
 
 
 void main() {
@@ -32,6 +34,15 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  Future<List<Map<String, dynamic>>> fetchWeatherData({required String period}) async {
+    // TODO: Implement actual API call
+    return [
+      {'timestamp': DateTime.now().toIso8601String(), 'temperature': 20},
+      {'timestamp': DateTime.now().add(const Duration(days: 1)).toIso8601String(), 'temperature': 22},
+      {'timestamp': DateTime.now().add(const Duration(days: 2)).toIso8601String(), 'temperature': 21},
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,9 +111,25 @@ class _MainPageState extends State<MainPage> {
                   ),
                   Container(
                     color: const Color(0xFF0B1D26),
-                    child: const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: PredictionsAndStatisticsSection(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: PredictionsAndStatisticsSection(
+                        timeFrame: "30 days",
+                        timeLabels: ["1d", "7d", "30d"],
+                        selectedFactor: "Humidity",
+                        fetchData: ({required String period}) async {
+                          final response = await http.get(
+                            Uri.parse('http://localhost:8000/api/weather-data/by-city/?city=astana'),
+                          );
+                          
+                          if (response.statusCode == 200) {
+                            final List<dynamic> jsonData = json.decode(response.body);
+                            return List<Map<String, dynamic>>.from(jsonData);
+                          } else {
+                            throw Exception('Failed to load weather data');
+                          }
+                        },
+                      ),
                     ),
                   ),
                   Container(

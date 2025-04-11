@@ -29,80 +29,83 @@ class FloodPredictionApp extends StatelessWidget {
 class StatisticsPage extends StatelessWidget {
   const StatisticsPage({super.key});
 
-  Future<List<Map<String, dynamic>>> fetchWeatherData({String period = '12months'}) async {
+  Future<List<Map<String, dynamic>>> fetchWeatherData({String period = '12months', String city = 'almaty'}) async {
     try {
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:8000/api/weather-data/'),
-      );
+        Uri.parse('http://10.0.2.2:8000/api/weather-data/by-city/?city=$city'),
+     );
 
       if (response.statusCode == 200) {
-        final List<Map<String, dynamic>> rawData = List<Map<String, dynamic>>.from(json.decode(response.body));
+        final List<dynamic> rawData = json.decode(response.body);
+        print('API Response for $city: ${response.body}');
         
-        // Using forecast data is preferred, but since the API may not provide it,
-        // we'll generate future forecast data from tday's date
-        return generateForecastData(period);
+        // Convert dynamic list to List<Map<String, dynamic>>
+        return rawData.map((item) => Map<String, dynamic>.from(item)).toList();
       } else {
-        // If server returns an error, use generated forecast data
-        return generateForecastData(period);
+        print('API Error: ${response.statusCode}');
+        throw Exception('Failed to load data');
       }
     } catch (e) {
-      // In case of error, return forecast data
-      return generateForecastData(period);
+      print('Error fetching data: $e');
+      throw Exception('Failed to load data');
     }
   }
   
-   Future<List<Map<String, dynamic>>> generateForecastData(String period) async {
-    final now = DateTime.now();
-    final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/weather-data/'));
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonData = json.decode(response.body);
-      
-      switch (period) {
-        case '12months':
-          return List.generate(12, (index) {
-            final date = DateTime(now.year, now.month + index);
-            final monthData = jsonData.firstWhere(
-              (item) => DateTime.parse(item['date']).month == date.month,
-              orElse: () => jsonData[index % jsonData.length],
-            );
-            return {
-              'date': DateFormat('MMMM yyyy').format(date),
-              'risk': monthData['flood_risk_month'] ?? 0,
-            };
-          });
-        case '30days':
-          return List.generate(30, (index) {
-            final date = now.add(Duration(days: index));
-            final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-            final dayData = jsonData.firstWhere(
-              (item) => DateFormat('yyyy-MM-dd').format(DateTime.parse(item['date'])) == formattedDate,
-              orElse: () => jsonData[index % jsonData.length],
-            );
-            return {
-              'date': formattedDate,
-              'risk': dayData['flood_risk'] ?? 0,
-            };
-          });
-        case '7days':
-          return List.generate(7, (index) {
-            final date = now.add(Duration(days: index));
-            final formattedDate = DateFormat('yyyy-MM-dd').format(date);
-            final dayData = jsonData.firstWhere(
-              (item) => DateFormat('yyyy-MM-dd').format(DateTime.parse(item['date'])) == formattedDate,
-              orElse: () => jsonData[index % jsonData.length],
-            );
-            return {
-              'date': formattedDate,
-              'risk': dayData['flood_risk'] ?? 0,
-            };
-          });
-        default:
-          throw ArgumentError('Invalid period: $period');
-      }
-    } else {
-      throw Exception('Failed to load forecast data');
+   Future<List<Map<String, dynamic>>> generateForecastData(String period, String city) async {
+  final now = DateTime.now();
+  final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/weather-data/by-city/?city=$city'));
+  if (response.statusCode == 200) {
+    final List<dynamic> jsonData = json.decode(response.body);
+    
+    // Sort the data by date
+    jsonData.sort((a, b) => DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
+    
+    switch (period) {
+      case '12months':
+        return List.generate(12, (index) {
+          final date = DateTime(now.year, now.month + index);
+          final monthData = jsonData.firstWhere(
+            (item) => DateTime.parse(item['date']).month == date.month,
+            orElse: () => jsonData[index % jsonData.length],
+          );
+          return {
+            'date': DateFormat('MMMM yyyy').format(date),
+            'risk': monthData['flood_risk_month'] ?? 0,
+          };
+        });
+      case '30days':
+        return List.generate(30, (index) {
+          final date = now.add(Duration(days: index));
+          final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+          final dayData = jsonData.firstWhere(
+            (item) => DateFormat('yyyy-MM-dd').format(DateTime.parse(item['date'])) == formattedDate,
+            orElse: () => jsonData[index % jsonData.length],
+          );
+          return {
+            'date': formattedDate,
+            'risk': dayData['flood_risk'] ?? 0,
+          };
+        });
+      case '7days':
+        return List.generate(7, (index) {
+          final date = now.add(Duration(days: index));
+          final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+          final dayData = jsonData.firstWhere(
+            (item) => DateFormat('yyyy-MM-dd').format(DateTime.parse(item['date'])) == formattedDate,
+            orElse: () => jsonData[index % jsonData.length],
+          );
+          return {
+            'date': formattedDate,
+            'risk': dayData['flood_risk'] ?? 0,
+          };
+        });
+      default:
+        throw ArgumentError('Invalid period: $period');
     }
+  } else {
+    throw Exception('Failed to load forecast data');
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -505,11 +508,13 @@ class LegendItem extends StatelessWidget {
 class BarChartWidget extends StatefulWidget {
   final String selectedTimeframe;
   final String selectedDataType;
+  final String selectedCity;
 
   const BarChartWidget({
     Key? key,
     required this.selectedTimeframe,
     required this.selectedDataType,
+    required this.selectedCity,
   }) : super(key: key);
 
   @override
@@ -529,54 +534,95 @@ class _BarChartWidgetState extends State<BarChartWidget> {
   void didUpdateWidget(BarChartWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.selectedTimeframe != oldWidget.selectedTimeframe ||
-        widget.selectedDataType != oldWidget.selectedDataType) {
+        widget.selectedDataType != oldWidget.selectedDataType ||
+        widget.selectedCity != oldWidget.selectedCity) {
       _dataFuture = _fetchData();
     }
   }
 
   Future<List<BarChartGroupData>> _fetchData() async {
-    final response = await http.get(Uri.parse('http://10.0.2.2:8000/api/weather-data/'));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return _processData(data);
-    } else {
-      throw Exception('Failed to load data');
+    try {
+      final url = 'http://10.0.2.2:8000/api/weather-data/by-city/?city=${widget.selectedCity.toLowerCase()}';
+      print('Fetching from URL: $url');
+      
+      final response = await http.get(Uri.parse(url));
+      print('Response status: ${response.statusCode}');
+      print('Raw response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
+        print('Decoded data length: ${jsonData.length}');
+        if (jsonData.isNotEmpty) {
+          print('Sample data item: ${jsonData.first}');
+        }
+        
+        // Filter data for the next 7 or 30 days from today
+        final now = DateTime.now();
+        final endDate = now.add(Duration(days: widget.selectedTimeframe == "30 days" ? 30 : 7));
+        final filteredData = jsonData.where((item) {
+          final itemDate = DateTime.parse(item['date']);
+          return itemDate.isAfter(now.subtract(Duration(days: 1))) && itemDate.isBefore(endDate);
+        }).toList();
+        
+        filteredData.sort((a, b) => DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
+        
+        return _processData(filteredData);
+      } else {
+        print('Error status code: ${response.statusCode}');
+        return [];
+      }
+    } catch (e, stackTrace) {
+      print('Error fetching data: $e');
+      print('Stack trace: $stackTrace');
+      return [];
     }
   }
 
   List<BarChartGroupData> _processData(List<dynamic> data) {
-    List<BarChartGroupData> barGroups = [];
-    int range = widget.selectedTimeframe == "30 days" ? 30 : 7;
-    String dataKey = _getDataKey();
-
-    DateTime now = DateTime.now();
-
-    for (int i = 0; i < range; i++) {
-      DateTime currentDate = now.add(Duration(days: i));
-      String formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
-
-      var matchingData = data.firstWhere(
-        (item) => item['date'].startsWith(formattedDate),
-        orElse: () => null,
-      );
-
-      double value = matchingData != null ? matchingData[dataKey].toDouble() : 0.0;
-
-      barGroups.add(
-        BarChartGroupData(
-          x: i,
-          barRods: [
-            BarChartRodData(
-              toY: value,
-              color: _getBarColor(i),
-              width: 16,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ],
-        ),
-      );
+    try {
+      List<BarChartGroupData> barGroups = [];
+      String dataKey = _getDataKey();
+      print('Processing data with key: $dataKey');
+      
+      print('Processing ${data.length} data points');
+      
+      for (int i = 0; i < data.length; i++) {
+        var item = data[i];
+        print('Processing item: $item');
+        
+        double value = 0.0;
+        if (item[dataKey] != null) {
+          if (item[dataKey] is num) {
+            value = item[dataKey].toDouble();
+          } else {
+            value = double.tryParse(item[dataKey].toString()) ?? 0.0;
+          }
+        }
+        
+        print('Value for $dataKey: $value');
+        
+        barGroups.add(
+          BarChartGroupData(
+            x: i,
+            barRods: [
+              BarChartRodData(
+                toY: value,
+                color: _getBarColor(i),
+                width: 16,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ],
+          ),
+        );
+      }
+      
+      print('Created ${barGroups.length} bar groups');
+      return barGroups;
+    } catch (e, stackTrace) {
+      print('Error in _processData: $e');
+      print('Stack trace: $stackTrace');
+      return [];
     }
-    return barGroups;
   }
 
   String _getDataKey() {
@@ -828,6 +874,7 @@ class TabSelectorWithChart extends StatefulWidget {
 class _TabSelectorWithChartState extends State<TabSelectorWithChart> {
   int _selectedTimeframeIndex = 0;
   int _selectedDataTypeIndex = 0;
+  int _selectedCityIndex = 0;
   final List<String> timeframes = ['7 days', '30 days'];
   final List<String> dataTypes = [
     'Humidity',
@@ -838,6 +885,25 @@ class _TabSelectorWithChartState extends State<TabSelectorWithChart> {
     'Wind Speed',
     'Precipitation',
     'Flood Risk'
+  ];
+  final List<String> cities = [
+    'Astana',
+    'Almaty',
+    'Atyrau',
+    'Aktau',
+    'Aktobe',
+    'Karaganda',
+    'Kokshetau',
+    'Kostanay',
+    'Kyzylorda',
+    'Pavlodar',
+    'Semipalatinsk',
+    'Shymkent',
+    'Taldykorgan',
+    'Taraz',
+    'Ural',
+    'Uskemen',
+    'Zhezkazgan'
   ];
 
   @override
@@ -863,10 +929,28 @@ class _TabSelectorWithChartState extends State<TabSelectorWithChart> {
             });
           },
         ),
+        const SizedBox(height: 16),
+        DropdownButton<int>(
+          value: _selectedCityIndex,
+          items: cities.asMap().entries.map((entry) {
+            return DropdownMenuItem<int>(
+              value: entry.key,
+              child: Text(entry.value),
+            );
+          }).toList(),
+          onChanged: (int? newValue) {
+            setState(() {
+              _selectedCityIndex = newValue!;
+            });
+          },
+          style: TextStyle(color: Colors.white),
+          dropdownColor: Colors.blueGrey[900],
+        ),
         const SizedBox(height: 24),
         BarChartWidget(
           selectedTimeframe: timeframes[_selectedTimeframeIndex],
           selectedDataType: dataTypes[_selectedDataTypeIndex],
+          selectedCity: cities[_selectedCityIndex],
         ),
       ],
     );
@@ -874,8 +958,9 @@ class _TabSelectorWithChartState extends State<TabSelectorWithChart> {
 }
 
 
+
 class WeatherDataTableSection extends StatefulWidget {
-  final Future<List<Map<String, dynamic>>> Function({String period}) fetchData;
+  final Future<List<Map<String, dynamic>>> Function({String period, String city}) fetchData;
 
   const WeatherDataTableSection({Key? key, required this.fetchData}) : super(key: key);
 
@@ -927,8 +1012,29 @@ class TimeRangeFilter extends StatelessWidget {
 
 class _WeatherDataTableSectionState extends State<WeatherDataTableSection> {
   String _selectedTimeframe = "12 months";
+  String _selectedCity = "Astana";
   List<Map<String, dynamic>> _data = [];
   bool _isLoading = true;
+
+  final Map<String, String> _cities = {
+    'Astana': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=astana',
+    'Almaty': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=almaty',
+    'Atyrau': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=atyrau',
+    'Aktau': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=aktau',
+    'Aktobe': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=aktobe',
+    'Karaganda': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=karaganda',
+    'Kokshetau': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=kokshetau',
+    'Kostanay': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=kostanay',
+    'Kyzylorda': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=kyzylorda',
+    'Pavlodar': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=pavlodar',
+    'Semipalatinsk': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=semipalatinsk',
+    'Shymkent': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=shymkent',
+    'Taldykorgan': 'http://10.0.2.2:8000/api/weather-data/by-city/?city=taldykorgan',
+    'Taraz': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=taraz',
+    'Ural': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=ural',
+    'Uskemen': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=uskemen',
+    'Zhezkazgan': 'http://10.0.2.2:8000//api/weather-data/by-city/?city=zhezkazgan',
+  };
 
   @override
   void initState() {
@@ -942,35 +1048,115 @@ class _WeatherDataTableSectionState extends State<WeatherDataTableSection> {
     });
 
     try {
-      String apiPeriod;
-      switch (_selectedTimeframe) {
-        case "12 months": apiPeriod = '12months'; break;
-        case "30 days": apiPeriod = '30days'; break;
-        case "7 days": apiPeriod = '7days'; break;
-        default: apiPeriod = '12months';
-      }
+      print('Loading data for city: $_selectedCity, timeframe: $_selectedTimeframe');
 
-      final fetchedData = await widget.fetchData(period: apiPeriod);
+      final fetchedData = await widget.fetchData(
+        period: _selectedTimeframe.replaceAll(' ', '').toLowerCase(),
+        city: _selectedCity.toLowerCase()
+      );
       
       if (fetchedData.isNotEmpty) {
         setState(() {
           _data = _processData(fetchedData);
           _isLoading = false;
         });
+        print('Processed ${_data.length} data points');
       } else {
         throw Exception('No data available');
       }
     } catch (e) {
+      print('Error loading data: $e');
       setState(() {
         _isLoading = false;
         _data = [];
       });
-      print('Error loading data: $e');
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   List<Map<String, dynamic>> _processData(List<Map<String, dynamic>> rawData) {
-    return rawData;
+      print('Processing ${rawData.length} raw data points'); // Debug log
+    final now = DateTime.now();
+
+    if (_selectedTimeframe == "12 months") {
+      return List.generate(12, (index) {
+        final targetDate = DateTime(now.year, now.month + index, 1);
+        print('Processing month: ${targetDate.year}-${targetDate.month}'); // Debug log
+        
+        // Try to find monthly risk data first
+        var monthlyData = rawData.firstWhere(
+          (item) => 
+            item['flood_risk_month'] != null && 
+            DateTime.parse(item['date']).month == targetDate.month,
+          orElse: () => {'flood_risk_month': null},
+        );
+        
+        // If monthly data exists, use it directly
+        if (monthlyData['flood_risk_month'] != null) {
+          double risk = (monthlyData['flood_risk_month'] is num)
+              ? (monthlyData['flood_risk_month'] as num).toDouble()
+              : double.tryParse(monthlyData['flood_risk_month'].toString()) ?? 0.0;
+              
+          return {
+            'date': targetDate.toIso8601String(),
+            'risk': risk,
+          };
+        }  
+        double monthlyRisk = 0.0;
+        
+        return {
+          'date': targetDate.toIso8601String(),
+          'risk': monthlyRisk,
+        };
+      });
+    }else if (_selectedTimeframe == "30 days" || _selectedTimeframe == "7 days") {
+      final days = _selectedTimeframe == "30 days" ? 30 : 7;
+      
+      // Sort raw data by date
+      rawData.sort((a, b) => DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
+      
+      return List.generate(days, (index) {
+        final targetDate = now.add(Duration(days: index));
+        
+        // Find data point for this date
+        final dayData = rawData.firstWhere(
+          (item) {
+            final itemDate = DateTime.parse(item['date']);
+            return itemDate.year == targetDate.year && 
+                   itemDate.month == targetDate.month && 
+                   itemDate.day == targetDate.day;
+          },
+          orElse: () {
+            print('No data found for date: ${targetDate.toString()}'); // Debug log
+            return {'flood_risk': 0.0};
+          },
+        );
+        
+        // Extract flood risk, ensuring it's a double
+        double risk = 0.0;
+        if (dayData['flood_risk'] != null) {
+          risk = (dayData['flood_risk'] is num) 
+              ? (dayData['flood_risk'] as num).toDouble()
+              : double.tryParse(dayData['flood_risk'].toString()) ?? 0.0;
+        }
+        
+        print('Date: ${targetDate.toString()}, Risk: $risk'); // Debug log
+        
+        return {
+          'date': targetDate.toIso8601String(),
+          'risk': risk,
+        };
+      });
+    }
+    return [];
   }
 
   List<FlSpot> _getChartData() {
@@ -1016,6 +1202,24 @@ class _WeatherDataTableSectionState extends State<WeatherDataTableSection> {
               });
               _loadData();
             },
+          ),
+        ),
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: DropdownButton<String>(
+            value: _selectedCity,
+            onChanged: (String? newValue) {
+              setState(() {
+                _selectedCity = newValue!;
+              });
+              _loadData();
+            },
+            items: _cities.keys.map<DropdownMenuItem<String>>((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
           ),
         ),
         if (_isLoading)
