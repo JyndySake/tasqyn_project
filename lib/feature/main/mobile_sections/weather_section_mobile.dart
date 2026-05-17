@@ -10,7 +10,7 @@ class WeatherSection extends StatefulWidget {
 }
 
 class _WeatherSectionState extends State<WeatherSection> {
-  static const String apiKey = "935693816889474b854102533252101";
+  static const String apiKey = "9.";
   static const String baseUrl = "http://api.weatherapi.com/v1";
 
   late Future<Map<String, dynamic>> _currentWeather;

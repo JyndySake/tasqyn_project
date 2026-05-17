@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:project_app/feature/widget/nav_bar.dart';
 
 void main() {
   runApp(const MyApp());

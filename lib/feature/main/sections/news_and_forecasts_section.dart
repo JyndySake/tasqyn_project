@@ -70,7 +70,7 @@ class NewsAndForecastsSection extends StatelessWidget {
               alignment: WrapAlignment.center,
               children: [
                 NewsCard(
-                  headline: 'Flood Warning in City X',
+                  headline: 'Flood Warning in Atyrau',
                   description: 'Authorities have issued a flood warning...',
                   imageAsset: 'assets/images/2.jpg',
                 ),
@@ -92,8 +92,6 @@ class NewsAndForecastsSection extends StatelessWidget {
     );
   }
 }
-
-
 class NewsCard extends StatelessWidget {
   final String headline;
   final String description;
